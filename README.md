@@ -1,4 +1,4 @@
-# JustDoIt v5 — Task Automation Scheduler
+# JustDoIt — Task Automation Scheduler
 
 Modular Next.js 14 + Firebase application with clean separation of concerns.
 
