@@ -1,0 +1,174 @@
+/* ── Folder Nav ─────────────────────────────────────── */
+.folder-nav-bleed {
+    width: 100vw;
+    margin-left: calc(50% - 50vw);
+  }
+  
+  .folder-nav {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+    padding: 0 32px;
+    margin: 0 0 24px;
+    overflow-x: auto;
+    background: var(--white);
+    border-bottom: 1px solid var(--gray-300);
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .folder-nav::-webkit-scrollbar { display: none; }
+  
+  /* ── Tab ────────────────────────────────────────────── */
+  .folder-tab {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 48px;
+    padding: 12px 18px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: none;
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gray-500);
+    transition: color 0.12s, border-color 0.12s;
+  }
+  .folder-tab:hover { color: var(--black); }
+  .folder-tab.active {
+    color: var(--black);
+    border-bottom-color: var(--black);
+  }
+  
+  .folder-tab-name { display: inline-block; }
+  
+  .folder-tab-count {
+    display: inline-block;
+    color: var(--gray-400);
+    font-size: 0.6rem;
+    letter-spacing: 0.06em;
+  }
+  
+  /* ── Delete × ───────────────────────────────────────── */
+  .folder-delete {
+    margin-left: 2px;
+    color: #dd8e8e;
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.12s, color 0.12s;
+  }
+  .folder-tab:hover .folder-delete { opacity: 0.9; }
+  .folder-delete:hover {
+    color: var(--red);
+    opacity: 1;
+  }
+  
+  /* ── + New Folder ───────────────────────────────────── */
+  .folder-add {
+    margin-left: auto;
+    color: var(--gray-400);
+    font-style: italic;
+  }
+  .folder-add:hover { color: var(--black); }
+  
+  /* ── Summary / Stats ────────────────────────────────── */
+  .folder-header-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+    width: 100%;
+    margin-bottom: 16px;
+  }
+  
+  .folder-header-copy {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .summary-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(80px, auto));
+    gap: 24px;
+    align-items: start;
+    justify-content: end;
+  }
+  
+  .summary-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    min-width: 80px;
+  }
+  
+  .summary-label {
+    display: block;
+    margin-bottom: 4px;
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    line-height: 1.2;
+    letter-spacing: 0.04em;
+    color: var(--gray-500);
+  }
+  
+  .summary-stat strong {
+    display: block;
+    font-family: var(--mono);
+    font-size: 1.75rem;
+    line-height: 1;
+    font-weight: 700;
+    color: var(--black);
+  }
+  
+  /* ── Responsive ─────────────────────────────────────── */
+  @media (max-width: 900px) {
+    .folder-nav { padding: 0 16px; margin-bottom: 20px; }
+    .folder-tab { padding: 12px 14px; font-size: 0.68rem; gap: 5px; }
+  
+    .folder-header-section {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .summary-stats { justify-content: start; }
+  }
+  
+  @media (max-width: 640px) {
+    .folder-nav { padding: 0 10px; margin-bottom: 14px; }
+    .folder-tab {
+      min-height: 42px;
+      padding: 10px 10px;
+      font-size: 0.6rem;
+      gap: 4px;
+      letter-spacing: 0.06em;
+    }
+    .folder-tab-count { font-size: 0.55rem; }
+    .folder-delete { font-size: 0.68rem; opacity: 0.9; }
+  
+    .summary-stats {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .summary-stat {
+      min-width: 0;
+      align-items: center;
+      text-align: center;
+    }
+    .summary-label { font-size: 0.58rem; margin-bottom: 3px; }
+    .summary-stat strong { font-size: 1.25rem; }
+  }
+  
+  @media (max-width: 420px) {
+    .folder-tab { padding: 10px 8px; gap: 3px; }
+    .summary-stats { gap: 8px; }
+    .summary-stat strong { font-size: 1.1rem; }
+  }

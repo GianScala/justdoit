@@ -1,0 +1,5 @@
+.legal-page { max-width: 1200px; margin: 0 auto; padding: 40px 0; }
+.legal-page h1 { font-family: var(--mono); font-size: clamp(24px, 4vw, 36px); font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px; margin-bottom: 8px; }
+.legal-page .legal-updated { color: var(--gray-400); font-family: var(--mono); font-size: 0.75rem; margin-bottom: 40px; }
+.legal-page h2 { font-family: var(--mono); font-size: 0.9rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 36px; margin-bottom: 10px; }
+.legal-page p { color: var(--gray-600); font-size: 0.9rem; line-height: 1.75; margin-bottom: 14px; }

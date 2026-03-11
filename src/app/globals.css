@@ -1,0 +1,24 @@
+/* Base */
+@import "../styles/base/fonts.css";
+@import "../styles/base/tokens.css";
+@import "../styles/base/reset.css";
+/* UI */
+@import "../styles/ui/buttons.css";
+@import "../styles/ui/forms.css";
+@import "../styles/ui/alerts.css";
+@import "../styles/ui/modal.css";
+@import "../styles/ui/loading.css";
+@import "../styles/ui/animations.css";
+@import "../styles/ui/utilities.css";
+/* Layout */
+@import "../styles/layout/shell.css";
+@import "../styles/layout/header.css";
+@import "../styles/layout/footer.css";
+@import "../styles/layout/page.css";
+/* Pages */
+@import "../styles/pages/auth.css";
+@import "../styles/pages/dashboard.css";
+@import "../styles/pages/tasks.css";
+@import "../styles/pages/profile.css";
+@import "../styles/pages/legal.css";
+@import "../styles/pages/landing.css";

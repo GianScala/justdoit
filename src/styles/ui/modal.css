@@ -1,0 +1,3 @@
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: grid; place-items: center; padding: 20px; z-index: 200; }
+.modal-content { width: 100%; max-width: 460px; border: 2px solid var(--black); background: var(--white); padding: 28px; }
+.modal-title { font-family: var(--mono); font-size: 0.9rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
