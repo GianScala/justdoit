@@ -197,70 +197,6 @@
   height: 44px;
 }
 
-/* ---------- Modal task form ----------
-   Uses SAME language as your desktop form
-*/
-
-.task-modal-form {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.task-modal-form .task-form-field {
-  min-width: 0;
-}
-
-.task-modal-form .input {
-  width: 100%;
-  height: 44px;
-  padding: 0 14px;
-  font-size: 0.95rem;
-}
-
-.task-modal-form select.input {
-  height: 44px;
-}
-
-.task-modal-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-top: 4px;
-}
-
-.task-modal-actions .task-form-button {
-  height: 44px;
-}
-
-.task-modal-actions .task-form-button-secondary {
-  width: 100%;
-  height: 44px;
-  border: 1px solid var(--gray-300);
-  background: var(--white);
-  color: var(--gray-600);
-  font-family: var(--mono);
-  font-size: 0.82rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  cursor: pointer;
-  transition:
-    background 0.15s ease,
-    color 0.15s ease,
-    border-color 0.15s ease,
-    opacity 0.15s ease;
-}
-
-.task-modal-actions .task-form-button-secondary:hover {
-  border-color: var(--black);
-  color: var(--black);
-}
-
-.task-modal-actions .task-form-button-secondary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
 
 /* ---------- Task list ---------- */
 
@@ -596,19 +532,6 @@
     min-height: 38px;
   }
 
-  .task-modal-form .input,
-  .task-modal-form select.input,
-  .task-modal-form-button,
-  .task-modal-actions .task-form-button,
-  .task-modal-actions .task-form-button-secondary {
-    height: 42px;
-  }
-
-  /* prevent iOS zoom */
-  .task-modal-form .input,
-  .task-modal-form select.input {
-    font-size: 16px;
-  }
 }
 
 /* ---------- Very small mobile ---------- */
@@ -622,10 +545,8 @@
     font-size: 0.68rem;
   }
 
-  .task-modal-form .input,
-  .task-modal-form select.input,
-  .task-modal-actions .task-form-button,
-  .task-modal-actions .task-form-button-secondary,
+  .task-form-button,
+  .task-form-button-secondary,
   .task-form-mobile-trigger .task-form-button {
     height: 40px;
   }

@@ -134,7 +134,7 @@
   .task-modal-form .input {
     width: 100%;
     padding: 10px 12px;
-    font-size: 0.94rem;
+    font-size: 0.88rem;
     line-height: 1.5;
     border: 1px solid var(--gray-200);
     border-radius: 8px;
@@ -143,6 +143,11 @@
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
     -webkit-appearance: none;
     appearance: none;
+  }
+  
+  /* smaller text specifically for the priority select */
+  .task-modal-form select.input {
+    font-size: 0.82rem;
   }
   
   .task-modal-form .input:focus {
@@ -238,7 +243,6 @@
       border-radius: 16px 16px 0 0;
       border-bottom: none;
       box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.1);
-      /* slide up from bottom */
       transform: translateY(100%);
       opacity: 1;
     }
@@ -281,14 +285,13 @@
       height: 40px;
     }
   
-    /* prevent iOS 16px zoom */
+    /* prevent iOS 16px zoom — must stay at 16px minimum */
     .modal-content input,
     .modal-content select,
     .modal-content textarea {
       font-size: 16px;
     }
   
-    /* task form tweaks */
     .task-modal-form {
       gap: 14px;
     }
