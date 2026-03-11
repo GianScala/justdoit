@@ -1,63 +1,93 @@
 /* ══════════════════════════════════════════
-   Modal
-   Minimal shell only
-   Keeps the same visual language as task form/cards
+   Modal — production bottom-sheet / dialog
    ══════════════════════════════════════════ */
 
-   .modal-overlay {
+/* --- overlay --- */
+.modal-overlay {
     position: fixed;
     inset: 0;
     z-index: 1000;
-    background: rgba(0, 0, 0, 0.38);
+    background: rgba(0, 0, 0, 0);
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    padding: 24px;
+    transition: background 0.25s ease;
+    -webkit-tap-highlight-color: transparent;
   }
   
+  .modal-overlay--visible {
+    background: rgba(0, 0, 0, 0.4);
+  }
+  
+  /* --- content shell --- */
   .modal-content {
+    position: relative;
     width: 100%;
-    max-width: 560px;
-    max-height: calc(100vh - 40px);
+    max-width: 520px;
+    max-height: calc(100dvh - 48px);
     overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
     border: 1px solid var(--gray-200);
+    border-radius: 12px;
     background: var(--white);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    box-shadow:
+      0 8px 30px rgba(0, 0, 0, 0.08),
+      0 1px 3px rgba(0, 0, 0, 0.06);
+    opacity: 0;
+    transform: scale(0.96) translateY(12px);
+    transition:
+      opacity 0.2s ease,
+      transform 0.2s ease;
   }
   
+  .modal-content--visible {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  
+  /* --- drag zone (hidden on desktop) --- */
+  .modal-drag-zone {
+    display: none;
+  }
+  
+  /* --- header --- */
   .modal-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 18px 20px 0;
+    padding: 20px 20px 0;
   }
   
   .modal-title {
     margin: 0;
     font-family: var(--mono);
-    font-size: 0.84rem;
+    font-size: 0.82rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 1.4px;
     color: var(--black);
   }
   
+  /* --- close button --- */
   .modal-close {
-    width: 40px;
-    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
     border: 1px solid var(--gray-200);
+    border-radius: 8px;
     background: var(--white);
     color: var(--black);
-    font-family: var(--mono);
-    font-size: 1rem;
-    font-weight: 700;
     cursor: pointer;
     transition:
       background 0.15s ease,
       color 0.15s ease,
-      border-color 0.15s ease,
-      opacity 0.15s ease;
+      border-color 0.15s ease;
   }
   
   .modal-close:hover {
@@ -66,17 +96,136 @@
     border-color: var(--black);
   }
   
-  .modal-close:disabled {
-    opacity: 0.6;
+  .modal-close:focus-visible {
+    outline: 2px solid var(--black);
+    outline-offset: 2px;
+  }
+  
+  /* --- body --- */
+  .modal-body {
+    padding: 16px 20px 20px;
+  }
+  
+  
+  /* ═══════════════════════════════════════════
+     Task modal form (used inside Modal body)
+     ═══════════════════════════════════════════ */
+  .task-modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .task-modal-form .task-form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  
+  .task-modal-form .label {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--gray-500, #6b7280);
+  }
+  
+  .task-modal-form .input {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 0.94rem;
+    line-height: 1.5;
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    background: var(--white);
+    color: var(--black);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  
+  .task-modal-form .input:focus {
+    outline: none;
+    border-color: var(--black);
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06);
+  }
+  
+  .task-modal-form .input::placeholder {
+    color: var(--gray-400, #9ca3af);
+  }
+  
+  /* priority row — compact horizontal layout */
+  .task-modal-row {
+    display: flex;
+    gap: 12px;
+  }
+  
+  .task-modal-row > .task-form-field {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  /* --- action buttons --- */
+  .task-modal-actions {
+    display: flex;
+    gap: 10px;
+    padding-top: 4px;
+  }
+  
+  .task-modal-actions .task-form-button,
+  .task-modal-actions .task-form-button-secondary {
+    flex: 1;
+    padding: 12px 16px;
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition:
+      background 0.15s ease,
+      color 0.15s ease,
+      border-color 0.15s ease,
+      opacity 0.15s ease;
+  }
+  
+  .task-modal-actions .task-form-button {
+    background: var(--black);
+    color: var(--white);
+    border: 1px solid var(--black);
+  }
+  
+  .task-modal-actions .task-form-button:hover:not(:disabled) {
+    opacity: 0.85;
+  }
+  
+  .task-modal-actions .task-form-button-secondary {
+    background: var(--white);
+    color: var(--black);
+    border: 1px solid var(--gray-200);
+  }
+  
+  .task-modal-actions .task-form-button-secondary:hover:not(:disabled) {
+    background: var(--gray-50, #f9fafb);
+    border-color: var(--gray-300, #d1d5db);
+  }
+  
+  .task-modal-actions button:disabled {
+    opacity: 0.5;
     cursor: not-allowed;
   }
   
-  .modal-body {
-    padding: 18px 20px 20px;
+  .task-modal-actions button:focus-visible {
+    outline: 2px solid var(--black);
+    outline-offset: 2px;
   }
   
-  /* ---------- Mobile ---------- */
   
+  /* ═══════════════════════════════════════════
+     Mobile — bottom sheet behavior
+     ═══════════════════════════════════════════ */
   @media (max-width: 640px) {
     .modal-overlay {
       align-items: flex-end;
@@ -85,53 +234,88 @@
   
     .modal-content {
       max-width: none;
-      max-height: 88vh;
-      border-left: 0;
-      border-right: 0;
-      border-bottom: 0;
-      box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.08);
+      max-height: 92dvh;
+      border-radius: 16px 16px 0 0;
+      border-bottom: none;
+      box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.1);
+      /* slide up from bottom */
+      transform: translateY(100%);
+      opacity: 1;
+    }
+  
+    .modal-content--visible {
+      transform: translateY(0);
+      transition:
+        transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+  
+    /* drag handle */
+    .modal-drag-zone {
+      display: flex;
+      justify-content: center;
+      padding: 10px 0 2px;
+      cursor: grab;
+    }
+  
+    .modal-drag-handle {
+      width: 36px;
+      height: 4px;
+      border-radius: 4px;
+      background: var(--gray-300, #d1d5db);
     }
   
     .modal-header {
-      padding: 14px 14px 0;
+      padding: 8px 16px 0;
     }
   
     .modal-body {
-      padding: 14px 14px 16px;
+      padding: 12px 16px 24px;
     }
   
     .modal-title {
-      font-size: 0.78rem;
-      letter-spacing: 1.2px;
-    }
-  
-    .modal-close {
-      width: 42px;
-      height: 42px;
-      font-size: 1rem;
-    }
-  
-    /* prevent iOS zoom in modal fields */
-    .modal-content input,
-    .modal-content select,
-    .modal-content textarea {
-      font-size: 16px;
-    }
-  }
-  
-  /* ---------- Very small mobile ---------- */
-  
-  @media (max-width: 420px) {
-    .modal-header {
-      padding: 12px 12px 0;
-    }
-  
-    .modal-body {
-      padding: 12px 12px 14px;
+      font-size: 0.76rem;
     }
   
     .modal-close {
       width: 40px;
       height: 40px;
+    }
+  
+    /* prevent iOS 16px zoom */
+    .modal-content input,
+    .modal-content select,
+    .modal-content textarea {
+      font-size: 16px;
+    }
+  
+    /* task form tweaks */
+    .task-modal-form {
+      gap: 14px;
+    }
+  
+    .task-modal-form .input {
+      padding: 12px 14px;
+    }
+  
+    .task-modal-actions .task-form-button,
+    .task-modal-actions .task-form-button-secondary {
+      padding: 14px 16px;
+    }
+  
+    /* safe area for phones with home bars */
+    .modal-body::after {
+      content: "";
+      display: block;
+      height: env(safe-area-inset-bottom, 0px);
+    }
+  }
+  
+  @media (max-width: 420px) {
+    .modal-header {
+      padding: 6px 14px 0;
+    }
+  
+    .modal-body {
+      padding: 10px 14px 20px;
     }
   }

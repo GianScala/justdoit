@@ -20,6 +20,12 @@ export default function TaskForm({ folderId, onCreated }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  function reset() {
+    setName("");
+    setDeadline("");
+    setTag("standard");
+  }
+
   async function submitTask() {
     if (!name.trim() || submitting || !user) return;
 
@@ -32,9 +38,7 @@ export default function TaskForm({ folderId, onCreated }: Props) {
         tag,
       });
 
-      setName("");
-      setDeadline("");
-      setTag("standard");
+      reset();
       setMobileOpen(false);
       await onCreated();
     } finally {
@@ -49,6 +53,7 @@ export default function TaskForm({ folderId, onCreated }: Props) {
 
   return (
     <>
+      {/* ── Desktop inline form ── */}
       <form onSubmit={handleSubmit} className="task-form task-form-desktop">
         <div className="task-form-grid">
           <div className="task-form-field task-form-name">
@@ -94,6 +99,7 @@ export default function TaskForm({ folderId, onCreated }: Props) {
         </div>
       </form>
 
+      {/* ── Mobile trigger ── */}
       <div className="task-form-mobile-trigger">
         <button
           type="button"
@@ -105,12 +111,16 @@ export default function TaskForm({ folderId, onCreated }: Props) {
         </button>
       </div>
 
+      {/* ── Mobile modal ── */}
       <Modal
         open={mobileOpen}
         onClose={() => {
-          if (!submitting) setMobileOpen(false);
+          if (!submitting) {
+            setMobileOpen(false);
+            reset();
+          }
         }}
-        title="Add Task"
+        title="New Task"
       >
         <form onSubmit={handleSubmit} className="task-modal-form">
           <div className="task-form-field">
@@ -125,41 +135,46 @@ export default function TaskForm({ folderId, onCreated }: Props) {
             />
           </div>
 
-          <div className="task-form-field">
-            <label className="label">Deadline</label>
-            <input
-              className="input"
-              type="date"
-              value={deadline}
-              onChange={(e) => setDeadline(e.target.value)}
-            />
-          </div>
+          <div className="task-modal-row">
+            <div className="task-form-field">
+              <label className="label">Deadline</label>
+              <input
+                className="input"
+                type="date"
+                value={deadline}
+                onChange={(e) => setDeadline(e.target.value)}
+              />
+            </div>
 
-          <div className="task-form-field">
-            <label className="label">Priority</label>
-            <select
-              className="input"
-              value={tag}
-              onChange={(e) => setTag(e.target.value as TaskPriority)}
-            >
-              <option value="standard">Standard</option>
-              <option value="important">Important</option>
-              <option value="urgent">Urgent</option>
-            </select>
+            <div className="task-form-field">
+              <label className="label">Priority</label>
+              <select
+                className="input"
+                value={tag}
+                onChange={(e) => setTag(e.target.value as TaskPriority)}
+              >
+                <option value="standard">Standard</option>
+                <option value="important">Important</option>
+                <option value="urgent">Urgent</option>
+              </select>
+            </div>
           </div>
 
           <div className="task-modal-actions">
             <button
               type="button"
               className="task-form-button-secondary"
-              onClick={() => setMobileOpen(false)}
+              onClick={() => {
+                setMobileOpen(false);
+                reset();
+              }}
               disabled={submitting}
             >
               Cancel
             </button>
 
             <button className="task-form-button" type="submit" disabled={submitting}>
-              {submitting ? "Adding..." : "+ Add Task"}
+              {submitting ? "Adding..." : "Add Task"}
             </button>
           </div>
         </form>
