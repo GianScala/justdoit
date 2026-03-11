@@ -91,7 +91,7 @@
 /* ---------- Empty state ---------- */
 
 .empty-msg {
-  min-height: 70px;
+  min-height: 50px;
   padding: 20px 16px;
   border: 1px dashed var(--gray-300);
   display: flex;
@@ -107,7 +107,8 @@
 /* ---------- Task form ---------- */
 
 .task-form {
-  margin-bottom: 26px;
+  margin-bottom: 40px;
+  margin-top: 10px;
   border: 1px solid var(--gray-200);
   background: var(--white);
   padding: 18px 20px;
@@ -128,7 +129,7 @@
   display: block;
   margin-bottom: 8px;
   font-family: var(--mono);
-  font-size: 0.72rem;
+  font-size: 0.65rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1.4px;

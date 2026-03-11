@@ -1,1 +1,23 @@
-.shell { min-height: 100vh; display: flex; flex-direction: column; }
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: white;
+  color: #111827;
+}
+
+.shell-inner {
+  flex: 1;
+  width: 100%;
+  max-width: 80rem; /* same as max-w-7xl */
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  display: flex;
+  flex-direction: column;
+}

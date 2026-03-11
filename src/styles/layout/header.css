@@ -5,6 +5,7 @@
 .header {
     position: sticky;
     top: 0;
+    bottom: 0;
     z-index: 1000;
     background: var(--white);
     border-bottom: 2px solid var(--black);
@@ -12,8 +13,7 @@
   
   .header-inner {
     width: 100%;
-    max-width: 1200px;
-    min-height: 78px;
+    min-height: 62px;
     margin: 0 auto;
     padding: 0 32px;
     display: flex;

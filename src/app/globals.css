@@ -22,3 +22,26 @@
 @import "../styles/pages/profile.css";
 @import "../styles/pages/legal.css";
 @import "../styles/pages/landing.css";
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: white;
+  color: #111827;
+}
+
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.site-main {
+  flex: 1;
+  width: 100%;
+}

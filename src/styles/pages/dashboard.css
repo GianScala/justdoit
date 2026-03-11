@@ -111,9 +111,9 @@
   
   .summary-label {
     display: block;
-    margin-bottom: 4px;
+    margin-bottom: 10px;
     font-family: var(--mono);
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     line-height: 1.2;
     letter-spacing: 0.04em;
     color: var(--gray-500);
@@ -164,11 +164,11 @@
       text-align: center;
     }
     .summary-label { font-size: 0.58rem; margin-bottom: 3px; }
-    .summary-stat strong { font-size: 1.25rem; }
+    .summary-stat strong { font-size: 1rem; }
   }
   
   @media (max-width: 420px) {
     .folder-tab { padding: 10px 8px; gap: 3px; }
     .summary-stats { gap: 8px; }
-    .summary-stat strong { font-size: 1.1rem; }
+    .summary-stat strong { font-size: 1rem; }
   }
