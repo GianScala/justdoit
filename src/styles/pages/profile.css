@@ -1,7 +1,7 @@
 .profile-page { max-width: 600px; margin: 0 auto; }
 .profile-avatar { width: 72px; height: 72px; background: var(--black); display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 28px; font-weight: 800; color: var(--white); margin: 0 auto 20px; }
 .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.profile-card { border: 1px solid var(--gray-200); padding: 24px; background: var(--white); }
+.profile-card { border: 1px solid var(--gray-200); padding: 24px; background: var(--white); margin-top: 20px; }
 .profile-field { padding: 14px 0; border-bottom: 1px solid var(--gray-100); }
 .profile-field:last-of-type { border-bottom: none; }
 .profile-label { font-family: var(--mono); font-size: 0.68rem; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }

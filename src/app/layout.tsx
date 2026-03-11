@@ -1,6 +1,5 @@
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
-import Shell from "@/components/layout/Shell";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 
@@ -19,11 +18,13 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <AuthProvider>
-          <Shell>
+          <div className="shell">
             <Header />
-            <main className="site-main">{children}</main>
+            <div className="shell-inner">
+              <main className="site-main">{children}</main>
+            </div>
             <Footer />
-          </Shell>
+          </div>
         </AuthProvider>
       </body>
     </html>
