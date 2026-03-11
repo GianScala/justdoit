@@ -528,7 +528,7 @@
   }
 
   .task-column-header h3 {
-    font-size: 0.78rem;
+    font-size: 0.7rem;
     letter-spacing: 1.2px;
   }
 
@@ -551,14 +551,14 @@
 
   .label {
     margin-bottom: 6px;
-    font-size: 0.68rem;
+    font-size: 0.6rem;
     letter-spacing: 1.2px;
   }
 
   .empty-msg {
     min-height: 62px;
     padding: 16px 12px;
-    font-size: 0.74rem;
+    font-size: 0.7rem;
   }
 
   .task-list {
@@ -580,7 +580,7 @@
   }
 
   .task-card-name {
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     line-height: 1.28;
   }
 
@@ -598,7 +598,7 @@
 
   .task-date,
   .task-deadline-state {
-    font-size: 0.72rem;
+    font-size: 0.7rem;
   }
 
   .task-actions {
@@ -621,51 +621,23 @@
 /* ---------- Very small mobile ---------- */
 
 @media (max-width: 420px) {
-  .task-column-header h3 {
-    font-size: 0.74rem;
-  }
-
-  .task-count {
-    font-size: 0.68rem;
-  }
-
-  .task-form-button,
-  .task-form-button-secondary,
-  .task-form-mobile-trigger .task-form-button {
-    height: 40px;
-  }
-
-  .task-card {
-    padding: 11px 10px 12px;
-  }
-
-  .task-card-name {
-    font-size: 0.86rem;
-  }
-
-  .task-meta {
+  .task-actions {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 44px;
     gap: 6px;
   }
 
-  .task-date,
-  .task-deadline-state {
-    font-size: 0.69rem;
-  }
-
-  .task-actions {
-    grid-template-columns: 1fr 1fr;
-  }
-
   .task-action-btn {
-    min-height: 38px;
-    font-size: 0.68rem;
+    min-height: 36px;
+    padding: 0 6px;
+    font-size: 0.64rem;
+    gap: 4px;
+  }
+
+  .task-action-icon {
+    font-size: 0.72rem;
   }
 
   .task-action-btn-danger {
-    grid-column: 1 / -1;
-  }
-
-  .task-modal-actions {
-    grid-template-columns: 1fr;
+    grid-column: auto;
   }
 }
