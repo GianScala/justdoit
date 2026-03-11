@@ -1,11 +1,11 @@
 /* ══════════════════════════════════════════
    Tasks — Responsive Dashboard Layout
-   Matches:
-   - compact desktop form row
-   - cleaner section headers
-   - flatter structured task cards
-   - strong mobile stacking
-   - mobile add-task trigger using same design language
+   Refined for:
+   - flatter, tighter cards
+   - smaller typography
+   - single-row action buttons like mock
+   - compact mobile card proportions
+   - edit modal support
    ══════════════════════════════════════════ */
 
 /* ---------- Page task sections ---------- */
@@ -163,7 +163,7 @@
   background: var(--white);
   color: var(--black);
   font-family: var(--mono);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.8px;
@@ -185,6 +185,35 @@
   cursor: not-allowed;
 }
 
+.task-form-button-secondary {
+  width: 100%;
+  height: 44px;
+  border: 1px solid var(--gray-300);
+  background: var(--white);
+  color: var(--black);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.task-form-button-secondary:hover {
+  border-color: var(--black);
+  background: var(--gray-50, #f7f7f7);
+}
+
+.task-form-button-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* ---------- Mobile add-task trigger ---------- */
 
 .task-form-mobile-trigger {
@@ -197,6 +226,26 @@
   height: 44px;
 }
 
+/* ---------- Task modal form ---------- */
+
+.task-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.task-modal-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.task-modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding-top: 4px;
+}
 
 /* ---------- Task list ---------- */
 
@@ -210,13 +259,16 @@
 
 .task-card {
   display: flex;
-  align-items: stretch;
-  justify-content: space-between;
-  gap: 16px;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px 16px 16px;
   background: var(--white);
   border: 1px solid var(--gray-200);
-  border-left: 5px solid var(--gray-300);
-  transition: border-color 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+  border-left: 6px solid var(--gray-300);
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    opacity 0.18s ease;
 }
 
 .task-card:hover {
@@ -248,19 +300,16 @@
 /* ---------- Main content inside card ---------- */
 
 .task-card-main {
-  flex: 1;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1.9fr) minmax(220px, 0.95fr);
-  align-items: stretch;
 }
 
 .task-card-info {
   min-width: 0;
-  padding: 14px 18px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  gap: 10px;
 }
 
 .task-card-topline {
@@ -268,14 +317,13 @@
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: 8px;
 }
 
 .task-card-name {
   margin: 0;
-  font-size: 1rem;
-  font-weight: 700;
-  line-height: 1.25;
+  font-size: 0.96rem;
+  font-weight: 800;
+  line-height: 1.3;
   color: var(--black);
   word-break: break-word;
 }
@@ -286,10 +334,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 22px;
-  padding: 2px 10px;
+  min-height: 20px;
+  padding: 1px 9px;
   font-family: var(--mono);
-  font-size: 0.66rem;
+  font-size: 0.62rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.8px;
@@ -315,13 +363,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 22px;
-  padding: 2px 10px;
+  min-height: 20px;
+  padding: 1px 9px;
   border: 1px solid var(--gray-300);
   background: var(--white);
   color: var(--gray-600);
   font-family: var(--mono);
-  font-size: 0.66rem;
+  font-size: 0.62rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.6px;
@@ -330,28 +378,27 @@
 /* ---------- Date / deadline meta ---------- */
 
 .task-meta {
-  min-width: 0;
-  padding: 14px 18px;
-  border-left: 1px solid var(--gray-100);
-  border-right: 1px solid var(--gray-100);
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 16px;
+  gap: 10px;
   flex-wrap: wrap;
-  text-align: center;
+  min-width: 0;
+  padding-top: 2px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--gray-150, #e8e8e8);
   font-family: var(--mono);
-  font-size: 0.8rem;
   color: var(--gray-500);
 }
 
 .task-date {
   white-space: nowrap;
+  font-size: 0.78rem;
 }
 
 .task-deadline-state {
-  font-weight: 800;
   white-space: nowrap;
+  font-size: 0.78rem;
+  font-weight: 800;
 }
 
 .task-deadline-state.is-overdue {
@@ -365,13 +412,60 @@
 /* ---------- Actions ---------- */
 
 .task-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 14px 16px 14px 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 58px;
+  gap: 10px;
+  align-items: stretch;
 }
+
+.task-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 42px;
+  padding: 0 10px;
+  border: 1px solid var(--gray-300);
+  background: var(--white);
+  color: var(--black);
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  font-weight: 500;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.task-action-btn:hover {
+  background: var(--gray-50, #f8f8f8);
+  border-color: var(--gray-400);
+}
+
+.task-action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.task-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  font-size: 0.82rem;
+  flex-shrink: 0;
+}
+
+.task-action-btn-danger {
+  padding: 0;
+  min-width: 0;
+}
+
+/* ---------- Legacy button class safety ---------- */
 
 .task-actions .btn-ghost,
 .task-actions .btn-danger {
@@ -384,10 +478,6 @@
   .task-form-grid {
     grid-template-columns: minmax(0, 2fr) minmax(170px, 1.15fr) minmax(160px, 1fr) 135px;
     gap: 12px;
-  }
-
-  .task-card-main {
-    grid-template-columns: minmax(0, 1.55fr) minmax(210px, 0.95fr);
   }
 }
 
@@ -412,31 +502,11 @@
   }
 
   .task-card {
-    flex-direction: column;
-    gap: 0;
+    padding: 13px 14px 14px;
   }
 
-  .task-card-main {
+  .task-modal-row {
     grid-template-columns: 1fr;
-  }
-
-  .task-card-info {
-    padding: 14px 16px 12px;
-  }
-
-  .task-meta {
-    justify-content: flex-start;
-    text-align: left;
-    border-left: 0;
-    border-right: 0;
-    border-top: 1px solid var(--gray-100);
-    border-bottom: 1px solid var(--gray-100);
-    padding: 12px 16px;
-  }
-
-  .task-actions {
-    justify-content: flex-start;
-    padding: 12px 16px 16px;
   }
 }
 
@@ -495,43 +565,57 @@
     gap: 10px;
   }
 
+  .task-card {
+    gap: 12px;
+    padding: 12px 12px 14px;
+    border-left-width: 5px;
+  }
+
   .task-card-info {
-    padding: 12px 14px 10px;
+    gap: 9px;
   }
 
   .task-card-topline {
     gap: 6px;
-    margin-bottom: 7px;
   }
 
   .task-card-name {
-    font-size: 0.94rem;
-    line-height: 1.3;
+    font-size: 0.9rem;
+    line-height: 1.28;
   }
 
   .priority-badge,
   .overall-folder-chip {
-    min-height: 20px;
-    padding: 2px 8px;
-    font-size: 0.62rem;
+    min-height: 18px;
+    padding: 1px 8px;
+    font-size: 0.58rem;
   }
 
   .task-meta {
     gap: 8px;
-    padding: 10px 14px;
-    font-size: 0.74rem;
+    padding-bottom: 9px;
+  }
+
+  .task-date,
+  .task-deadline-state {
+    font-size: 0.72rem;
   }
 
   .task-actions {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 52px;
     gap: 8px;
-    padding: 10px 14px 14px;
   }
 
-  .task-actions .btn-ghost,
-  .task-actions .btn-danger {
-    min-height: 38px;
+  .task-action-btn {
+    min-height: 40px;
+    font-size: 0.7rem;
+    padding: 0 8px;
+    gap: 6px;
   }
 
+  .task-action-icon {
+    font-size: 0.76rem;
+  }
 }
 
 /* ---------- Very small mobile ---------- */
@@ -551,25 +635,34 @@
     height: 40px;
   }
 
+  .task-card {
+    padding: 11px 10px 12px;
+  }
+
   .task-card-name {
-    font-size: 0.9rem;
+    font-size: 0.86rem;
   }
 
   .task-meta {
-    flex-direction: column;
-    align-items: flex-start;
-    text-align: left;
-    gap: 4px;
+    gap: 6px;
+  }
+
+  .task-date,
+  .task-deadline-state {
+    font-size: 0.69rem;
   }
 
   .task-actions {
-    flex-direction: column;
-    align-items: stretch;
+    grid-template-columns: 1fr 1fr;
   }
 
-  .task-actions .btn-ghost,
-  .task-actions .btn-danger {
-    width: 100%;
+  .task-action-btn {
+    min-height: 38px;
+    font-size: 0.68rem;
+  }
+
+  .task-action-btn-danger {
+    grid-column: 1 / -1;
   }
 
   .task-modal-actions {

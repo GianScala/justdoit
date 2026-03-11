@@ -30,7 +30,6 @@
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
     border: 1px solid var(--gray-200);
-    border-radius: 12px;
     background: var(--white);
     box-shadow:
       0 8px 30px rgba(0, 0, 0, 0.08),
@@ -80,7 +79,6 @@
     height: 36px;
     flex-shrink: 0;
     border: 1px solid var(--gray-200);
-    border-radius: 8px;
     background: var(--white);
     color: var(--black);
     cursor: pointer;
@@ -137,7 +135,6 @@
     font-size: 0.88rem;
     line-height: 1.5;
     border: 1px solid var(--gray-200);
-    border-radius: 8px;
     background: var(--white);
     color: var(--black);
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -187,7 +184,6 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 1px;
-    border-radius: 8px;
     cursor: pointer;
     transition:
       background 0.15s ease,
@@ -240,7 +236,6 @@
     .modal-content {
       max-width: none;
       max-height: 92dvh;
-      border-radius: 16px 16px 0 0;
       border-bottom: none;
       box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.1);
       transform: translateY(100%);
