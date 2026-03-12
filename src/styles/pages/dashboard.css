@@ -78,6 +78,29 @@
     font-style: italic;
   }
   .folder-add:hover { color: var(--black); }
+
+  /* ── Due-today badge ─────────────────────────────────── */
+  .folder-due-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    background: var(--red);
+    color: var(--white);
+    font-family: var(--mono);
+    font-size: 0.55rem;
+    font-weight: 800;
+    line-height: 1;
+    flex-shrink: 0;
+    border-radius: 999px;
+    animation: dueBadgePulse 2s ease-in-out infinite;
+  }
+
+  @keyframes dueBadgePulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
   
   /* ── Summary / Stats ────────────────────────────────── */
   .folder-header-section {
@@ -171,4 +194,41 @@
     .folder-tab { padding: 10px 8px; gap: 3px; }
     .summary-stats { gap: 8px; }
     .summary-stat strong { font-size: 1rem; }
+  }
+
+  /* ── Danger Zone (delete folder at bottom) ────────── */
+
+  .folder-danger-zone {
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid var(--gray-200);
+    text-align: center;
+  }
+
+  .folder-danger-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 20px;
+    border: 1px solid var(--gray-300);
+    background: var(--white);
+    color: var(--gray-400);
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .folder-danger-btn:hover {
+    background: var(--red);
+    color: var(--white);
+    border-color: var(--red);
+  }
+
+  @media (max-width: 640px) {
+    .folder-danger-zone { margin-top: 32px; padding-top: 18px; }
+    .folder-danger-btn { font-size: 0.62rem; padding: 8px 16px; }
   }

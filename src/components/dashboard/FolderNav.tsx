@@ -8,47 +8,36 @@ interface Props {
   onSelect: (id: string) => void;
   onCreate: () => void;
   onDelete?: (id: string) => void;
-  /** All tasks across all folders — used to compute live counts */
   allTasks?: TaskWithFolder[];
-  /** Optional fallback override for the Overall tab count */
   overallCount?: number;
 }
 
-/**
- * Count todo + inprogress tasks for a given folder.
- * Prefers the live `allTasks` array; falls back to `folder.counts`.
- */
-function getActiveCount(
-  folder: FolderRecord,
-  allTasks?: TaskWithFolder[],
-): number {
+function getActiveCount(folder: FolderRecord, allTasks?: TaskWithFolder[]): number {
   if (allTasks) {
     return allTasks.filter(
-      (t) =>
-        t.folderId === folder.id &&
-        (t.status === "todo" || t.status === "inprogress"),
+      (t) => t.folderId === folder.id && (t.status === "todo" || t.status === "inprogress")
     ).length;
   }
   return (folder.counts?.todo ?? 0) + (folder.counts?.inprogress ?? 0);
 }
 
+function hasDueToday(folderId: string, allTasks?: TaskWithFolder[]): boolean {
+  if (!allTasks) return false;
+  const today = new Date().toISOString().slice(0, 10);
+  return allTasks.some(
+    (t) => t.folderId === folderId && t.deadline === today && t.status !== "completed"
+  );
+}
+
 export default function FolderNav({
-  folders,
-  activeFolder,
-  onSelect,
-  onCreate,
-  onDelete,
-  allTasks,
-  overallCount,
+  folders, activeFolder, onSelect, onCreate, onDelete, allTasks, overallCount,
 }: Props) {
   const totalActive =
-    overallCount ??
-    folders.reduce((sum, f) => sum + getActiveCount(f, allTasks), 0);
+    overallCount ?? folders.reduce((sum, f) => sum + getActiveCount(f, allTasks), 0);
 
   return (
     <div className="folder-nav-bleed">
       <nav className="folder-nav" aria-label="Folders">
-        {/* ── Overall tab ─────────────────────────────── */}
         <button
           type="button"
           className={`folder-tab${activeFolder === "overall" ? " active" : ""}`}
@@ -58,9 +47,9 @@ export default function FolderNav({
           <span className="folder-tab-count">[{totalActive}]</span>
         </button>
 
-        {/* ── Per-folder tabs ─────────────────────────── */}
         {folders.map((folder) => {
           const count = getActiveCount(folder, allTasks);
+          const dueToday = hasDueToday(folder.id, allTasks);
 
           return (
             <button
@@ -71,6 +60,9 @@ export default function FolderNav({
             >
               <span className="folder-tab-name">{folder.name}</span>
               <span className="folder-tab-count">[{count}]</span>
+              {dueToday && (
+                <span className="folder-due-badge" title="Has tasks due today">!</span>
+              )}
 
               {!folder.locked && onDelete && (
                 <span
@@ -78,15 +70,10 @@ export default function FolderNav({
                   role="button"
                   tabIndex={0}
                   aria-label={`Delete ${folder.name}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete(folder.id);
-                  }}
+                  onClick={(e) => { e.stopPropagation(); onDelete(folder.id); }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      onDelete(folder.id);
+                      e.preventDefault(); e.stopPropagation(); onDelete(folder.id);
                     }
                   }}
                 >
@@ -97,12 +84,7 @@ export default function FolderNav({
           );
         })}
 
-        {/* ── Add folder ──────────────────────────────── */}
-        <button
-          type="button"
-          className="folder-tab folder-add"
-          onClick={onCreate}
-        >
+        <button type="button" className="folder-tab folder-add" onClick={onCreate}>
           + New Folder
         </button>
       </nav>

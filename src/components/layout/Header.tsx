@@ -23,6 +23,7 @@ export default function Header() {
 
     return [
       { href: "/dashboard", label: "Dashboard" },
+      { href: "/dashboard/ai-assistant", label: "AI Assistant" },
       { href: "/dashboard/profile", label: "Profile" },
     ];
   }, [isAuthed]);

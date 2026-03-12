@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useTasks } from "@/context/TaskContext";
 import PageContainer from "@/components/layout/PageContainer";
+import AiActionsCard from "@/components/dashboard/AiActionsCard";
 import FolderNav from "@/components/dashboard/FolderNav";
 import SummaryCard from "@/components/dashboard/SummaryCard";
 import TaskForm from "@/components/dashboard/TaskForm";
@@ -19,24 +20,14 @@ export default function DashboardPage() {
   const router = useRouter();
   const { user, loading } = useAuth();
   const {
-    folders,
-    activeFolder,
-    tasks,
-    overallTasks,
-    dataLoading,
-    counts,
-    folderNames,
-    isOverall,
-    setActiveFolder,
-    refresh,
-    createFolder,
-    deleteFolder,
+    folders, activeFolder, tasks, overallTasks, dataLoading,
+    counts, folderNames, isOverall, setActiveFolder, refresh,
+    createFolder, deleteFolder,
   } = useTasks();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [folderName, setFolderName] = useState("");
 
-  /* ── Auth guard ──────────────────────────────────── */
   useEffect(() => {
     if (!loading && !user) router.replace("/auth/login");
   }, [loading, user, router]);
@@ -48,12 +39,10 @@ export default function DashboardPage() {
 
   if (loading || !user) return <Spinner />;
 
-  /* ── Derived state ──────────────────────────────── */
   const currentTasks = isOverall
     ? overallTasks
     : tasks.map((t) => ({ ...t, folderId: activeFolder }));
 
-  /* ── Handlers ───────────────────────────────────── */
   async function handleSelect(id: string) {
     setActiveFolder(id);
     await refresh(id);
@@ -74,22 +63,20 @@ export default function DashboardPage() {
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this folder and all its tasks?")) return;
-    try {
-      await deleteFolder(id);
-    } catch (err: any) {
-      alert(err.message);
-    }
+    try { await deleteFolder(id); }
+    catch (err: any) { alert(err.message); }
   }
 
-  /* ── Render ─────────────────────────────────────── */
   return (
     <PageContainer>
+      {/* AI Actions — always visible at top */}
+      <AiActionsCard />
+
       <FolderNav
         folders={folders}
         activeFolder={activeFolder}
         onSelect={handleSelect}
         onCreate={() => setModalOpen(true)}
-        onDelete={handleDelete}
         allTasks={overallTasks}
       />
 
@@ -113,17 +100,29 @@ export default function DashboardPage() {
               onRefresh={() => refresh(activeFolder)}
               showFolder={isOverall}
               folderNames={folderNames}
+              defaultCollapsed={s === "completed"}
             />
           ))}
         </div>
       )}
 
-      {/* ── New-folder modal ───────────────────────── */}
-      <Modal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title="Create New Folder"
-      >
+      {/* Delete folder — bottom of project page, non-default only */}
+      {!isOverall && (() => {
+        const f = folders.find((x) => x.id === activeFolder);
+        return f && !f.locked ? (
+          <div className="folder-danger-zone">
+            <button
+              type="button"
+              className="folder-danger-btn"
+              onClick={() => handleDelete(activeFolder)}
+            >
+              Delete "{f.name}" and all its tasks
+            </button>
+          </div>
+        ) : null;
+      })()}
+
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Create New Folder">
         <div className="stack">
           <input
             className="input"
@@ -134,9 +133,7 @@ export default function DashboardPage() {
             autoFocus
           />
           <div className="row">
-            <Button variant="secondary" onClick={() => setModalOpen(false)}>
-              Cancel
-            </Button>
+            <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>
             <Button onClick={handleCreate}>Create</Button>
           </div>
         </div>
