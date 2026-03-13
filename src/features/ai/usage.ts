@@ -2,15 +2,28 @@
 
 import { doc, getDoc, runTransaction, serverTimestamp, setDoc } from "firebase/firestore";
 import { getFirebaseDb } from "@/features/auth/utils/firebase";
-import { DAILY_AI_TOKEN_LIMIT } from "@/lib/constants";
+import {
+  FREE_DAILY_AI_TOKEN_LIMIT,
+  UNLIMITED_AI_TOKENS,
+} from "@/lib/constants";
 
 export const AI_USAGE_LIMIT_MESSAGE =
-  "You've reached today's AI usage limit. Your quota will reset tomorrow.";
+  "You've reached your free AI quota for today.";
 
 export interface AiUsageStats {
   tokensUsedToday: number;
   tokensRemainingToday: number;
   lastTokenResetDate: string;
+}
+
+function getDailyLimit(data: Record<string, unknown> | undefined): number {
+  const subscriptionType = data?.subscriptionType;
+  const subscriptionStatus = data?.subscriptionStatus;
+  const isPro =
+    subscriptionStatus === "active" &&
+    (subscriptionType === "pro_monthly" || subscriptionType === "pro_yearly");
+
+  return isPro ? UNLIMITED_AI_TOKENS : FREE_DAILY_AI_TOKEN_LIMIT;
 }
 
 function getTodayKey(): string {
@@ -19,23 +32,31 @@ function getTodayKey(): string {
 
 function normalizeAiUsage(data: Record<string, unknown> | undefined): AiUsageStats {
   const today = getTodayKey();
+  const dailyLimit = getDailyLimit(data);
   const lastTokenResetDate =
     typeof data?.lastTokenResetDate === "string" ? data.lastTokenResetDate : today;
 
   if (lastTokenResetDate !== today) {
     return {
       tokensUsedToday: 0,
-      tokensRemainingToday: DAILY_AI_TOKEN_LIMIT,
+      tokensRemainingToday:
+        dailyLimit === UNLIMITED_AI_TOKENS ? UNLIMITED_AI_TOKENS : dailyLimit,
       lastTokenResetDate: today,
     };
   }
 
   const tokensUsedToday =
     typeof data?.tokensUsedToday === "number" ? data.tokensUsedToday : 0;
-  const tokensRemainingToday =
-    typeof data?.tokensRemainingToday === "number"
-      ? data.tokensRemainingToday
-      : Math.max(0, DAILY_AI_TOKEN_LIMIT - tokensUsedToday);
+
+  if (dailyLimit === UNLIMITED_AI_TOKENS) {
+    return {
+      tokensUsedToday,
+      tokensRemainingToday: UNLIMITED_AI_TOKENS,
+      lastTokenResetDate,
+    };
+  }
+
+  const tokensRemainingToday = Math.max(0, dailyLimit - tokensUsedToday);
 
   return {
     tokensUsedToday,
@@ -76,16 +97,20 @@ export async function consumeAiTokens(uid: string, amount: number): Promise<AiUs
   return runTransaction(getFirebaseDb(), async (transaction) => {
     const snap = await transaction.get(ref);
     const normalized = normalizeAiUsage(snap.data() as Record<string, unknown> | undefined);
+    const dailyLimit = getDailyLimit(snap.data() as Record<string, unknown> | undefined);
 
-    if (normalized.tokensRemainingToday <= 0) {
+    if (dailyLimit !== UNLIMITED_AI_TOKENS && normalized.tokensRemainingToday <= 0) {
       throw new Error(AI_USAGE_LIMIT_MESSAGE);
     }
 
-    const nextUsed = Math.min(
-      DAILY_AI_TOKEN_LIMIT,
-      normalized.tokensUsedToday + tokensToConsume,
-    );
-    const nextRemaining = Math.max(0, DAILY_AI_TOKEN_LIMIT - nextUsed);
+    const nextUsed =
+      dailyLimit === UNLIMITED_AI_TOKENS
+        ? normalized.tokensUsedToday + tokensToConsume
+        : Math.min(dailyLimit, normalized.tokensUsedToday + tokensToConsume);
+    const nextRemaining =
+      dailyLimit === UNLIMITED_AI_TOKENS
+        ? UNLIMITED_AI_TOKENS
+        : Math.max(0, dailyLimit - nextUsed);
     const nextValue: AiUsageStats = {
       tokensUsedToday: nextUsed,
       tokensRemainingToday: nextRemaining,

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AI_TOOLS } from "@/features/ai/tools";
-import type { ProposedPlan } from "@/features/ai/tools";
+import {
+  normalizeProposedPlan,
+  type ProposedPlan,
+} from "@/features/ai/tools";
 
 /* ── Types ────────────────────────────────────────────── */
 
@@ -118,7 +121,12 @@ CRITICAL RULES:
 4. For date arithmetic (e.g. "postpone by one week"), calculate from the task's current deadline.
 5. If ambiguous, ask for clarification — but prefer making smart assumptions over asking too many questions.
 6. When proposing a plan, include realistic deadlines spread across days, not all on the same day.
-7. Never overwhelm the user. If there is one best next step, say that.`;
+7. Every propose_plan MUST include a non-empty actions array. Each action MUST include:
+   - tool
+   - params
+   - description
+   Never leave plan actions empty or partial.
+8. Never overwhelm the user. If there is one best next step, say that.`;
 }
 
 function buildProactivePrompt(folders: FolderCtx[], tasks: TaskCtx[]): string {
@@ -431,7 +439,22 @@ async function runToolLoop(
         });
       } else if (tool.name === "propose_plan") {
         /* Capture plan for client-side validation */
-        plan = tool.input as unknown as ProposedPlan;
+        const normalizedPlan = normalizeProposedPlan(tool.input);
+
+        if (!normalizedPlan || normalizedPlan.actions.length === 0) {
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: tool.id,
+            content: JSON.stringify({
+              status: "error",
+              message:
+                "Invalid plan. Regenerate propose_plan with a non-empty actions array. Every action must include tool, params, and description.",
+            }),
+          });
+          continue;
+        }
+
+        plan = normalizedPlan;
         toolResults.push({
           type: "tool_result",
           tool_use_id: tool.id,

@@ -4,7 +4,6 @@ import { FormEvent, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { emailSignIn, signInWithGoogleAndCreateProfile, getFirebaseAuth, getFirebaseDb } from "@/lib/firebase";
-import { hasProAccess } from "@/features/subscription/utils";
 import { getFirebaseErrorMessage } from "@/lib/validations";
 import { signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
@@ -28,9 +27,9 @@ export default function LoginForm() {
       setSubmitting(true); setError(null);
       const result = await signInWithGoogleAndCreateProfile();
       if (result) {
-        const userDoc = await getDoc(doc(getFirebaseDb(), result.user.uid));
+        await getDoc(doc(getFirebaseDb(), result.user.uid));
         clearPendingVerification();
-        router.replace(hasProAccess({ id: result.user.uid, ...(userDoc.data() as any) }) ? "/dashboard/ai-assistant" : "/dashboard");
+        router.replace("/dashboard/ai-assistant");
       }
     } catch (err: any) {
       if (err?.code === "auth/popup-closed-by-user" || err?.code === "auth/cancelled-popup-request") { setSubmitting(false); return; }
@@ -58,7 +57,7 @@ export default function LoginForm() {
         return;
       }
       clearPendingVerification();
-      router.replace(hasProAccess({ id: cred.user.uid, ...(userDoc.data() as any) }) ? "/dashboard/ai-assistant" : "/dashboard");
+      router.replace("/dashboard/ai-assistant");
     } catch (err: any) {
       setError(getFirebaseErrorMessage(err?.code || ""));
       setSubmitting(false);

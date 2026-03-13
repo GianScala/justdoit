@@ -21,12 +21,17 @@ import {
 } from "@/features/ai/chat-storage";
 import {
   AI_USAGE_LIMIT_MESSAGE,
+  type AiUsageStats,
   consumeAiTokens,
   syncAiUsage,
 } from "@/features/ai/usage";
 import { buildStartMyDayMessage } from "@/features/ai/summary";
-import { hasProAccess } from "@/features/subscription/utils";
-import type { ToolCall, ProposedPlan } from "@/features/ai/tools";
+import { hasProAccess, hasUnlimitedAiTokens } from "@/features/subscription/utils";
+import {
+  normalizeProposedPlan,
+  type ToolCall,
+  type ProposedPlan,
+} from "@/features/ai/tools";
 import UpgradeProModal from "@/components/subscription/UpgradeProModal";
 
 const URL_ACTIONS = new Set(["start_my_day", "what_now", "fix_week"]);
@@ -50,13 +55,15 @@ export default function AiChat() {
   const searchParams = useSearchParams();
   const { user, profile, refreshProfile } = useAuth();
   const { folders, folderNames, overallTasks, refresh, dataLoading } = useTasks();
-  const canUseAi = hasProAccess(profile);
+  const canUseAi = !!user;
+  const hasUnlimitedTokens = hasUnlimitedAiTokens(profile);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [storageReady, setStorageReady] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [usageStats, setUsageStats] = useState<AiUsageStats | null>(null);
 
   const chatRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -84,6 +91,18 @@ export default function AiChat() {
     });
   }, []);
 
+  const showQuotaReachedNotice = useCallback(() => {
+    const alreadyShown = messagesRef.current.some(
+      (message) =>
+        message.role === "assistant" &&
+        message.content === AI_USAGE_LIMIT_MESSAGE,
+    );
+
+    if (!alreadyShown) {
+      appendMessage(createMessage("assistant", AI_USAGE_LIMIT_MESSAGE));
+    }
+  }, [appendMessage]);
+
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     const container = scrollRef.current;
     if (!container) return;
@@ -109,6 +128,7 @@ export default function AiChat() {
     if (!user) {
       setSessionMessages([]);
       setStorageReady(false);
+      setUsageStats(null);
       initializedSessionRef.current = false;
       handledUrlActionRef.current = null;
       return;
@@ -125,7 +145,12 @@ export default function AiChat() {
 
   useEffect(() => {
     if (!user || !canUseAi) return;
-    void syncAiUsage(user.uid).then(() => refreshProfile()).catch(() => {});
+    void syncAiUsage(user.uid)
+      .then((usage) => {
+        setUsageStats(usage);
+        return refreshProfile();
+      })
+      .catch(() => {});
   }, [user, canUseAi, refreshProfile]);
 
   useEffect(() => {
@@ -313,12 +338,18 @@ export default function AiChat() {
     [user, executeTool, refresh],
   );
 
+  const quotaReached =
+    !hasUnlimitedTokens &&
+    !!usageStats &&
+    usageStats.tokensRemainingToday <= 0;
+
+  useEffect(() => {
+    if (!quotaReached) return;
+    showQuotaReachedNotice();
+  }, [quotaReached, showQuotaReachedNotice]);
+
   const handleUndo = useCallback(async () => {
     if (!user) return;
-    if (!canUseAi) {
-      showUpgradeModal();
-      return;
-    }
 
     setLoading(true);
 
@@ -341,14 +372,13 @@ export default function AiChat() {
     } finally {
       setLoading(false);
     }
-  }, [user, canUseAi, refresh, appendMessage, showUpgradeModal]);
+  }, [user, refresh, appendMessage]);
 
   const sendToApi = useCallback(
     async (action: string, userMessage?: string, addUserMessage = true) => {
       if (loading || !user) return;
 
       if (!canUseAi) {
-        showUpgradeModal();
         return;
       }
 
@@ -362,8 +392,9 @@ export default function AiChat() {
       }
 
       const usage = await syncAiUsage(user.uid);
-      if (usage.tokensRemainingToday <= 0) {
-        appendMessage(createMessage("assistant", AI_USAGE_LIMIT_MESSAGE));
+      setUsageStats(usage);
+      if (!hasUnlimitedTokens && usage.tokensRemainingToday <= 0) {
+        showQuotaReachedNotice();
         await refreshProfile();
         return;
       }
@@ -397,7 +428,8 @@ export default function AiChat() {
         }
 
         if (data?.usage?.totalTokens) {
-          await consumeAiTokens(user.uid, data.usage.totalTokens);
+          const updatedUsage = await consumeAiTokens(user.uid, data.usage.totalTokens);
+          setUsageStats(updatedUsage);
           await refreshProfile();
         }
 
@@ -405,10 +437,12 @@ export default function AiChat() {
           await executeToolCalls(data.toolCalls);
         }
 
+        const plan = normalizeProposedPlan(data?.plan);
+
         appendMessage(
           createMessage("assistant", data.message || "Done.", {
-            plan: data.plan || null,
-            planStatus: data.plan ? "pending" : undefined,
+            plan,
+            planStatus: plan ? "pending" : undefined,
           }),
         );
       } catch (err) {
@@ -428,19 +462,19 @@ export default function AiChat() {
       loading,
       user,
       canUseAi,
-      showUpgradeModal,
       setSessionMessages,
       refreshProfile,
       gatherContext,
       executeToolCalls,
       appendMessage,
+      hasUnlimitedTokens,
+      showQuotaReachedNotice,
     ],
   );
 
   const handleQuickAction = useCallback(
     async (action: "start_my_day" | "what_now" | "fix_week") => {
-      if (!canUseAi) {
-        showUpgradeModal();
+      if (!canUseAi || quotaReached) {
         return;
       }
 
@@ -453,7 +487,7 @@ export default function AiChat() {
         action === "what_now" ? "What should I do now?" : "Fix my week";
       await sendToApi(action, userLabel, true);
     },
-    [canUseAi, showUpgradeModal, overallTasks, folderNames, appendMessage, sendToApi],
+    [canUseAi, quotaReached, overallTasks, folderNames, appendMessage, sendToApi],
   );
 
   const refreshChat = useCallback(() => {
@@ -477,8 +511,7 @@ export default function AiChat() {
     const text = input.trim();
     if (!text) return;
 
-    if (!canUseAi) {
-      showUpgradeModal();
+    if (!canUseAi || quotaReached) {
       return;
     }
 
@@ -491,7 +524,7 @@ export default function AiChat() {
 
     setInput("");
     await sendToApi("chat", text, true);
-  }, [input, canUseAi, showUpgradeModal, appendMessage, handleUndo, sendToApi]);
+  }, [input, canUseAi, quotaReached, appendMessage, handleUndo, sendToApi]);
 
   const handlePlanDecision = useCallback(
     async (messageId: string, approved: boolean) => {
@@ -504,17 +537,18 @@ export default function AiChat() {
       );
 
       const message = messagesRef.current.find((entry) => entry.id === messageId);
-      if (!message?.plan) return;
+      const plan = normalizeProposedPlan(message?.plan);
+      if (!plan) return;
 
       if (approved) {
         setLoading(true);
 
         try {
-          await executePlan(message.plan);
+          await executePlan(plan);
           appendMessage(
             createMessage(
               "assistant",
-              `Plan "${message.plan.plan_title}" applied. Say "undo" to revert it.`,
+              `Plan "${plan.plan_title}" applied. Say "undo" to revert it.`,
             ),
           );
         } catch {
@@ -557,24 +591,34 @@ export default function AiChat() {
   };
 
   const renderPlan = (message: ChatMessage) => {
-    if (!message.plan) return null;
+    const plan = normalizeProposedPlan(message.plan);
+    if (!plan) return null;
 
     const isPending = message.planStatus === "pending";
+    const actions = plan.actions;
 
     return (
       <div className={`ai-plan ${isPending ? "" : "ai-plan-decided"}`}>
         <div className="ai-plan-header">
           <span className="ai-plan-icon">📋</span>
-          <span className="ai-plan-title">{message.plan.plan_title}</span>
+          <span className="ai-plan-title">{plan.plan_title}</span>
         </div>
-        <div className="ai-plan-summary">{message.plan.plan_summary}</div>
+        <div className="ai-plan-summary">{plan.plan_summary}</div>
         <div className="ai-plan-steps">
-          {message.plan.actions.map((action, index) => (
-            <div key={`${message.id}-${index}`} className="ai-plan-step">
-              <span className="ai-plan-step-num">{index + 1}</span>
-              <span className="ai-plan-step-text">{action.description}</span>
+          {actions.length > 0 ? (
+            actions.map((action, index) => (
+              <div key={`${message.id}-${index}`} className="ai-plan-step">
+                <span className="ai-plan-step-num">{index + 1}</span>
+                <span className="ai-plan-step-text">{action.description}</span>
+              </div>
+            ))
+          ) : (
+            <div className="ai-plan-step ai-plan-step-fallback">
+              <span className="ai-plan-step-text">
+                This plan preview is missing steps. Ask me to regenerate it.
+              </span>
             </div>
-          ))}
+          )}
         </div>
         {isPending && (
           <div className="ai-plan-actions">
@@ -604,9 +648,9 @@ export default function AiChat() {
     );
   };
 
-  const emptyStateText = canUseAi
-    ? "Fresh daily focus will appear here when your session starts."
-    : "Upgrade to Pro to unlock AI planning";
+  const emptyStateText = quotaReached
+    ? "You've used today's free AI quota. Switch to Pro for unlimited tokens."
+    : "Fresh daily focus will appear here when your session starts.";
 
   return (
     <>
@@ -615,15 +659,15 @@ export default function AiChat() {
           {messages.length === 0 && !loading && (
             <div className="ai-chat-empty">
               <div className="ai-chat-empty-icon">⚡</div>
-              <div className="ai-chat-empty-title">{canUseAi ? "Today's Focus" : "Pro Required"}</div>
+              <div className="ai-chat-empty-title">Today's Focus</div>
               <div className="ai-chat-empty-text">{emptyStateText}</div>
-              {!canUseAi && (
+              {quotaReached && (
                 <button
                   type="button"
                   className="ai-quick-btn"
                   onClick={showUpgradeModal}
                 >
-                  Upgrade to Pro
+                  Switch to Pro Plan for unlimited tokens
                 </button>
               )}
             </div>
@@ -654,25 +698,38 @@ export default function AiChat() {
         </div>
 
         <div className="ai-chat-footer">
+          {quotaReached && (
+            <div className="ai-chat-upgrade-banner">
+              <div className="ai-chat-upgrade-copy">{AI_USAGE_LIMIT_MESSAGE}</div>
+              <button
+                type="button"
+                className="ai-chat-upgrade-btn"
+                onClick={showUpgradeModal}
+              >
+                Switch to Pro Plan for unlimited tokens
+              </button>
+            </div>
+          )}
+
           <div className="ai-chat-quick-bar">
             <button
               className="ai-quick-btn"
               onClick={() => void handleQuickAction("start_my_day")}
-              disabled={loading}
+              disabled={loading || quotaReached}
             >
               Start My Day
             </button>
             <button
               className="ai-quick-btn"
               onClick={() => void handleQuickAction("what_now")}
-              disabled={loading}
+              disabled={loading || quotaReached}
             >
               What should I do now
             </button>
             <button
               className="ai-quick-btn"
               onClick={() => void handleQuickAction("fix_week")}
-              disabled={loading}
+              disabled={loading || quotaReached}
             >
               Fix my week
             </button>
@@ -700,24 +757,23 @@ export default function AiChat() {
                 ref={inputRef}
                 className="ai-chat-input"
                 placeholder={
-                  canUseAi
-                    ? "Ask AI to plan your work, fix your week, or break down a goal..."
-                    : "Upgrade to Pro to chat with AI"
+                  quotaReached
+                    ? "Free quota reached. Upgrade to Pro for unlimited tokens."
+                    : "Ask AI to plan your work, fix your week, or break down a goal..."
                 }
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
                 onKeyDown={handleKeyDown}
                 onFocus={() => {
-                  if (!canUseAi) showUpgradeModal();
                   scrollToBottom("auto");
                 }}
                 rows={1}
-                disabled={loading}
+                disabled={loading || quotaReached}
               />
               <button
                 className="ai-chat-send"
                 onClick={() => void sendMessage()}
-                disabled={!input.trim() || loading}
+                disabled={!input.trim() || loading || quotaReached}
                 aria-label="Send message"
               >
                 Send
@@ -733,8 +789,8 @@ export default function AiChat() {
           onClose={() => setUpgradeOpen(false)}
           uid={user.uid}
           email={user.email}
-          title={canUseAi ? "Upgrade to Pro" : "Upgrade to Pro to unlock AI planning"}
-          description="Let AI organize your work automatically."
+          title={hasProAccess(profile) ? "Upgrade to Pro" : "Switch to Pro Plan for unlimited tokens"}
+          description="Let AI organize your work automatically with unlimited tokens."
         />
       )}
     </>

@@ -2,7 +2,7 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail, confirmPasswordReset, applyActionCode, signOut, updateProfile, getRedirectResult, signInWithRedirect } from "firebase/auth";
 import { doc, getDoc, getFirestore, serverTimestamp, setDoc } from "firebase/firestore";
-import { DAILY_AI_TOKEN_LIMIT } from "@/lib/constants";
+import { FREE_DAILY_AI_TOKEN_LIMIT } from "@/lib/constants";
 
 const cfg = { apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!, authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!, projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!, storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET!, messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!, appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID! };
 const app = getApps().length ? getApp() : initializeApp(cfg);
@@ -19,7 +19,7 @@ export async function ensureUserProfile(user: { uid: string; email: string | nul
     provider: user.providerData?.[0]?.providerId ?? "password",
     emailVerified: !!user.emailVerified,
     tokensUsedToday: snap.data()?.tokensUsedToday ?? 0,
-    tokensRemainingToday: snap.data()?.tokensRemainingToday ?? DAILY_AI_TOKEN_LIMIT,
+    tokensRemainingToday: snap.data()?.tokensRemainingToday ?? FREE_DAILY_AI_TOKEN_LIMIT,
     lastTokenResetDate: snap.data()?.lastTokenResetDate ?? new Date().toISOString().slice(0, 10),
     subscriptionType: snap.data()?.subscriptionType ?? "free",
     subscriptionStatus: snap.data()?.subscriptionStatus ?? "inactive",

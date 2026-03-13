@@ -9,7 +9,7 @@ import {
   type UserCredential,
 } from "firebase/auth";
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp, type Firestore } from "firebase/firestore";
-import { DAILY_AI_TOKEN_LIMIT } from "@/lib/constants";
+import { FREE_DAILY_AI_TOKEN_LIMIT } from "@/lib/constants";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -86,7 +86,7 @@ export async function emailSignUpAndCreateProfile(
     provider: "password",
     emailVerified: !!user.emailVerified,
     tokensUsedToday: 0,
-    tokensRemainingToday: DAILY_AI_TOKEN_LIMIT,
+    tokensRemainingToday: FREE_DAILY_AI_TOKEN_LIMIT,
     lastTokenResetDate: new Date().toISOString().slice(0, 10),
     subscriptionType: "free",
     subscriptionStatus: "inactive",
@@ -122,7 +122,7 @@ export async function signInWithGoogleAndCreateProfile(): Promise<UserCredential
       provider: "google.com",
       emailVerified: !!user.emailVerified,
       tokensUsedToday: 0,
-      tokensRemainingToday: DAILY_AI_TOKEN_LIMIT,
+      tokensRemainingToday: FREE_DAILY_AI_TOKEN_LIMIT,
       lastTokenResetDate: new Date().toISOString().slice(0, 10),
       subscriptionType: "free",
       subscriptionStatus: "inactive",

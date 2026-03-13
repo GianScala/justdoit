@@ -139,3 +139,115 @@ export type AiResponse = {
   toolCalls: ToolCall[];
   plan?: ProposedPlan | null;
 };
+
+function normalizePlanAction(value: unknown): PlanAction | null {
+  if (!value || typeof value !== "object") return null;
+
+  const raw = value as Record<string, unknown>;
+  const tool =
+    typeof raw.tool === "string"
+      ? raw.tool
+      : typeof raw.tool_name === "string"
+        ? raw.tool_name
+        : typeof raw.type === "string"
+          ? raw.type
+          : null;
+
+  const description =
+    typeof raw.description === "string"
+      ? raw.description
+      : typeof raw.title === "string"
+        ? raw.title
+        : typeof raw.name === "string"
+          ? raw.name
+          : typeof raw.summary === "string"
+            ? raw.summary
+            : null;
+
+  const paramsCandidate =
+    raw.params && typeof raw.params === "object" && !Array.isArray(raw.params)
+      ? raw.params
+      : raw.input && typeof raw.input === "object" && !Array.isArray(raw.input)
+        ? raw.input
+        : raw.arguments && typeof raw.arguments === "object" && !Array.isArray(raw.arguments)
+          ? raw.arguments
+          : null;
+
+  const inferredParams = Object.fromEntries(
+    Object.entries(raw).filter(
+      ([key]) =>
+        ![
+          "tool",
+          "tool_name",
+          "type",
+          "description",
+          "title",
+          "name",
+          "summary",
+          "params",
+          "input",
+          "arguments",
+        ].includes(key),
+    ),
+  );
+
+  const params =
+    paramsCandidate ??
+    (Object.keys(inferredParams).length > 0 ? inferredParams : null);
+
+  if (!tool || !description || !params) {
+    return null;
+  }
+
+  return {
+    tool,
+    description,
+    params: params as Record<string, unknown>,
+  };
+}
+
+export function normalizeProposedPlan(value: unknown): ProposedPlan | null {
+  if (!value || typeof value !== "object") return null;
+
+  const candidate = value as {
+    plan_title?: unknown;
+    plan_summary?: unknown;
+    actions?: unknown;
+    steps?: unknown;
+    items?: unknown;
+    tasks?: unknown;
+  };
+
+  const planTitle =
+    typeof candidate.plan_title === "string"
+      ? candidate.plan_title
+      : typeof (value as Record<string, unknown>).title === "string"
+        ? ((value as Record<string, unknown>).title as string)
+        : null;
+
+  const planSummary =
+    typeof candidate.plan_summary === "string"
+      ? candidate.plan_summary
+      : typeof (value as Record<string, unknown>).summary === "string"
+        ? ((value as Record<string, unknown>).summary as string)
+        : null;
+
+  if (!planTitle || !planSummary) {
+    return null;
+  }
+
+  const rawActions = [candidate.actions, candidate.steps, candidate.items, candidate.tasks]
+    .find((entry) => Array.isArray(entry));
+
+  const actions = Array.isArray(rawActions)
+    ? rawActions
+        .map((action) => normalizePlanAction(action))
+        .filter((action): action is PlanAction => action !== null)
+    : [];
+
+  return {
+    plan_title: planTitle,
+    plan_summary: planSummary,
+    actions,
+  };
+}

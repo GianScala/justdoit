@@ -3,19 +3,18 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { hasProAccess } from "@/features/subscription/utils";
 import Spinner from "@/components/ui/Spinner";
 import LandingPage from "@/components/landing/LandingPage";
 
 export default function RootPage() {
-  const { user, profile, loading } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     if (!loading && user) {
-      router.replace(hasProAccess(profile) ? "/dashboard/ai-assistant" : "/dashboard");
+      router.replace("/dashboard/ai-assistant");
     }
-  }, [loading, user, profile, router]);
+  }, [loading, user, router]);
 
   if (loading) return <Spinner />;
   if (user) return null;

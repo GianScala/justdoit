@@ -1,6 +1,9 @@
 "use client";
 
-import type { ProposedPlan } from "@/features/ai/tools";
+import {
+  normalizeProposedPlan,
+  type ProposedPlan,
+} from "@/features/ai/tools";
 
 export interface ChatMessage {
   id: string;
@@ -51,7 +54,7 @@ export function readChatSession(uid: string): ChatMessage[] {
         role: message.role,
         content: message.content,
         timestamp: new Date(message.timestamp),
-        plan: message.plan ?? null,
+        plan: normalizeProposedPlan(message.plan),
         planStatus: message.planStatus,
       }));
   } catch {
@@ -69,7 +72,7 @@ export function writeChatSession(uid: string, messages: ChatMessage[]) {
       role: message.role,
       content: message.content,
       timestamp: message.timestamp.toISOString(),
-      plan: message.plan ?? null,
+      plan: normalizeProposedPlan(message.plan),
       planStatus: message.planStatus,
     })),
   };
