@@ -94,7 +94,7 @@
 .landing-section-header {
   display: flex;
   justify-content: space-between;
-  align-items: end;
+  align-items: flex-end;
   gap: 16px;
   flex-wrap: wrap;
   margin-bottom: 20px;
@@ -195,6 +195,70 @@
 }
 
 /* =========================
+   Pricing
+========================= */
+
+.landing-pricing-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.landing-price-card {
+  border: 1px solid var(--gray-300);
+  background: var(--white);
+  padding: 20px;
+  display: grid;
+  gap: 18px;
+}
+
+.landing-price-header {
+  display: grid;
+  gap: 6px;
+}
+
+.landing-price-name,
+.landing-price-value {
+  font-family: var(--mono);
+  text-transform: uppercase;
+}
+
+.landing-price-name {
+  font-size: 0.72rem;
+  color: var(--gray-500);
+  letter-spacing: 0.8px;
+}
+
+.landing-price-value {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--black);
+  letter-spacing: 0.5px;
+}
+
+.landing-price-detail {
+  font-size: 0.88rem;
+  color: var(--gray-500);
+}
+
+.landing-price-list {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid var(--gray-300);
+  padding-top: 14px;
+}
+
+.landing-price-item {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--gray-500);
+}
+
+.landing-price-action {
+  padding-top: 4px;
+}
+
+/* =========================
    CTA
 ========================= */
 
@@ -241,6 +305,10 @@
 
   .landing-feature-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .landing-pricing-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .landing-cta-box {

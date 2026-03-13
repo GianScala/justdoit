@@ -1,5 +1,4 @@
 "use client";
-import { useAuth } from "@/context/AuthContext";
 import { useAuthRedirect } from "@/features/auth/hooks/useAuthRedirect";
 import { useRouter } from "next/navigation";
 import AuthHero from "@/components/auth/AuthHero";
@@ -18,14 +17,14 @@ export default function LoginPage() {
     <div className="auth-layout">
       <div className="auth-grid">
         <AuthHero
-          badge="Task Automation Scheduler"
-          title={<>Automate your<br /><span>productivity.</span></>}
-          subtitle="Schedule tasks, set priorities, and track progress — all from one simple dashboard."
-          features={["Smart folder organization", "Priority-based task scheduling", "Real-time cloud sync across devices"]}
+          badge="AI Productivity Assistant"
+          title={<>Let AI organize<br /><span>your work.</span></>}
+          subtitle="Sign in and go straight to an AI-first workspace that plans, prioritizes, and organizes tasks for you."
+          features={["Turn goals into plans", "See what matters now", "Keep tasks synced across devices"]}
         />
         <AuthCard
           title="Welcome Back"
-          subtitle="Sign in to your task scheduler"
+          subtitle="Sign in to your AI assistant"
           footer={<p className="muted">No account? <button type="button" onClick={() => router.push("/auth/register")} className="auth-footer-link">Create one</button></p>}
         >
           <LoginForm />

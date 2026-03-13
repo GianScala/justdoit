@@ -11,7 +11,7 @@ import Modal from "@/components/ui/Modal";
 interface Props {
   task: TaskWithFolder;
   status: TaskStatus;
-  onRefresh: () => void;
+  onRefresh: () => Promise<void> | void;
   showFolder: boolean;
   folderNames: Record<string, string>;
 }
@@ -27,6 +27,7 @@ export default function TaskCard({
 
   const [editOpen, setEditOpen] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const [name, setName] = useState(task.name);
   const [deadline, setDeadline] = useState(task.deadline ?? "");
@@ -37,6 +38,7 @@ export default function TaskCard({
       setName(task.name);
       setDeadline(task.deadline ?? "");
       setTag(task.tag);
+      setEditError(null);
     }
   }, [task, editOpen]);
 
@@ -44,18 +46,29 @@ export default function TaskCard({
     setName(task.name);
     setDeadline(task.deadline ?? "");
     setTag(task.tag);
+    setEditError(null);
   }
 
   async function moveTo(nextStatus: TaskStatus) {
     if (!user) return;
-    await updateTask(user.uid, task.folderId, task.id, { status: nextStatus });
-    onRefresh();
+    try {
+      await updateTask(user.uid, task.folderId, task.id, { status: nextStatus });
+      await onRefresh();
+    } catch (err) {
+      console.error("Failed to update task status:", err);
+      alert(err instanceof Error ? err.message : "Unable to update the task right now.");
+    }
   }
 
   async function remove() {
     if (!user || !confirm("Delete this task?")) return;
-    await deleteTask(user.uid, task.folderId, task.id);
-    onRefresh();
+    try {
+      await deleteTask(user.uid, task.folderId, task.id);
+      await onRefresh();
+    } catch (err) {
+      console.error("Failed to delete task:", err);
+      alert(err instanceof Error ? err.message : "Unable to delete the task right now.");
+    }
   }
 
   async function saveEdit() {
@@ -63,6 +76,7 @@ export default function TaskCard({
 
     try {
       setSavingEdit(true);
+      setEditError(null);
 
       await updateTask(user.uid, task.folderId, task.id, {
         name: name.trim(),
@@ -72,6 +86,9 @@ export default function TaskCard({
 
       setEditOpen(false);
       await onRefresh();
+    } catch (err) {
+      console.error("Failed to save task changes:", err);
+      setEditError(err instanceof Error ? err.message : "Unable to save your changes right now.");
     } finally {
       setSavingEdit(false);
     }
@@ -261,6 +278,8 @@ export default function TaskCard({
               </select>
             </div>
           </div>
+
+          {editError && <div className="task-form-error">{editError}</div>}
 
           <div className="task-modal-actions">
             <button

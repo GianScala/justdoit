@@ -6,17 +6,17 @@ export default function CtaSection() {
       <div className="page-container">
         <div className="landing-cta-box">
           <h2 className="landing-cta-title">
-            Start organizing your work today
+            Stop planning and let AI take over
           </h2>
 
           <p className="landing-cta-text">
-            Create a free account and start automating your tasks, projects, and
-            daily workflow.
+            Go from a messy goal to a clear plan, tasks, and next steps in under
+            a minute.
           </p>
 
           <div className="landing-cta-actions">
             <Link href="/auth/register" className="btn btn-primary">
-              Get Started
+              Start Free
             </Link>
           </div>
         </div>

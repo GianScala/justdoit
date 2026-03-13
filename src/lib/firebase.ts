@@ -9,6 +9,7 @@ import {
   type UserCredential,
 } from "firebase/auth";
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp, type Firestore } from "firebase/firestore";
+import { DAILY_AI_TOKEN_LIMIT } from "@/lib/constants";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -82,6 +83,15 @@ export async function emailSignUpAndCreateProfile(
     email: user.email ?? email,
     displayName: displayName ?? "",
     photoURL: "",
+    provider: "password",
+    emailVerified: !!user.emailVerified,
+    tokensUsedToday: 0,
+    tokensRemainingToday: DAILY_AI_TOKEN_LIMIT,
+    lastTokenResetDate: new Date().toISOString().slice(0, 10),
+    subscriptionType: "free",
+    subscriptionStatus: "inactive",
+    subscriptionStartDate: null,
+    subscriptionRenewalDate: null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -109,6 +119,15 @@ export async function signInWithGoogleAndCreateProfile(): Promise<UserCredential
       email: user.email ?? "",
       displayName: user.displayName ?? "",
       photoURL: user.photoURL ?? "",
+      provider: "google.com",
+      emailVerified: !!user.emailVerified,
+      tokensUsedToday: 0,
+      tokensRemainingToday: DAILY_AI_TOKEN_LIMIT,
+      lastTokenResetDate: new Date().toISOString().slice(0, 10),
+      subscriptionType: "free",
+      subscriptionStatus: "inactive",
+      subscriptionStartDate: null,
+      subscriptionRenewalDate: null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });

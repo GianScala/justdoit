@@ -4,6 +4,16 @@ import { useAuth } from "@/context/AuthContext";
 import { readFolders, readTasks, readAllTasks, createFolder as createFolderFn, deleteFolder as deleteFolderFn } from "@/features/tasks/utils/firestore";
 import type { FolderRecord, TaskRecord, TaskWithFolder, TaskCounts } from "@/types/task";
 
+function mergeFolderTasks(
+  existing: TaskWithFolder[],
+  folderId: string,
+  nextTasks: TaskRecord[],
+): TaskWithFolder[] {
+  const otherFolders = existing.filter((task) => task.folderId !== folderId);
+  const updatedFolderTasks = nextTasks.map((task) => ({ ...task, folderId }));
+  return [...otherFolders, ...updatedFolderTasks];
+}
+
 interface TaskContextValue {
   folders: FolderRecord[];
   activeFolder: string;
@@ -34,11 +44,32 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   const refresh = useCallback(async (folderId?: string) => {
     if (!user) return;
     const id = folderId ?? activeFolder;
-    const f = await readFolders(user.uid);
-    setFolders(f);
-    if (id === "overall") { setOverallTasks(await readAllTasks(user.uid)); }
-    else { setTasks(await readTasks(user.uid, id)); }
-    setDataLoading(false);
+
+    setDataLoading(true);
+
+    try {
+      if (id === "overall") {
+        const [nextFolders, nextOverallTasks] = await Promise.all([
+          readFolders(user.uid),
+          readAllTasks(user.uid),
+        ]);
+
+        setFolders(nextFolders);
+        setOverallTasks(nextOverallTasks);
+        return;
+      }
+
+      const [nextFolders, nextTasks] = await Promise.all([
+        readFolders(user.uid),
+        readTasks(user.uid, id),
+      ]);
+
+      setFolders(nextFolders);
+      setTasks(nextTasks);
+      setOverallTasks((prev) => (prev.length ? mergeFolderTasks(prev, id, nextTasks) : prev));
+    } finally {
+      setDataLoading(false);
+    }
   }, [user, activeFolder]);
 
   const createFolder = useCallback(async (name: string) => {

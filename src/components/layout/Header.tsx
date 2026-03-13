@@ -4,14 +4,16 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { hasProAccess } from "@/features/subscription/utils";
 import { getDayName, getDateStr } from "@/lib/formatters";
 
 export default function Header() {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const isAuthed = !loading && !!user;
+  const canUseAi = hasProAccess(profile);
 
   const navItems = useMemo(() => {
     if (!isAuthed) {
@@ -21,12 +23,17 @@ export default function Header() {
       ];
     }
 
-    return [
-      { href: "/dashboard", label: "Dashboard" },
-      { href: "/dashboard/ai-assistant", label: "AI Assistant" },
-      { href: "/dashboard/profile", label: "Profile" },
-    ];
-  }, [isAuthed]);
+    return canUseAi
+      ? [
+          { href: "/dashboard/ai-assistant", label: "AI Assistant" },
+          { href: "/dashboard", label: "Dashboard" },
+          { href: "/dashboard/profile", label: "Profile" },
+        ]
+      : [
+          { href: "/dashboard", label: "Dashboard" },
+          { href: "/dashboard/profile", label: "Profile" },
+        ];
+  }, [isAuthed, canUseAi]);
 
   useEffect(() => {
     setMobileOpen(false);
@@ -54,7 +61,7 @@ export default function Header() {
     <header className="header">
       <div className="header-inner">
         <Link
-          href={isAuthed ? "/dashboard" : "/"}
+          href={isAuthed ? (canUseAi ? "/dashboard/ai-assistant" : "/dashboard") : "/"}
           className="header-brand"
           aria-label="JustDoIt home"
         >

@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useTasks } from "@/context/TaskContext";
 import PageContainer from "@/components/layout/PageContainer";
-import AiActionsCard from "@/components/dashboard/AiActionsCard";
 import FolderNav from "@/components/dashboard/FolderNav";
 import SummaryCard from "@/components/dashboard/SummaryCard";
 import TaskForm from "@/components/dashboard/TaskForm";
@@ -69,9 +68,6 @@ export default function DashboardPage() {
 
   return (
     <PageContainer>
-      {/* AI Actions — always visible at top */}
-      <AiActionsCard />
-
       <FolderNav
         folders={folders}
         activeFolder={activeFolder}

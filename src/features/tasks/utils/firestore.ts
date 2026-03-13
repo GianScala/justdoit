@@ -8,6 +8,9 @@ import type { FolderRecord, TaskRecord, TaskPriority, TaskWithFolder } from "@/t
 function foldersCol(uid: string) { return collection(getFirebaseDb(), "users", uid, "folders"); }
 function tasksCol(uid: string, fid: string) { return collection(getFirebaseDb(), "users", uid, "folders", fid, "tasks"); }
 function toIso(v: unknown): string { if (!v) return new Date().toISOString(); if (v instanceof Timestamp) return v.toDate().toISOString(); if (typeof v === "string") return v; return new Date().toISOString(); }
+function compact<T extends Record<string, unknown>>(obj: T): Partial<T> {
+  return Object.fromEntries(Object.entries(obj).filter(([, value]) => value !== undefined)) as Partial<T>;
+}
 
 export async function ensureDefaultFolders(uid: string) {
   const col = foldersCol(uid); const snap = await getDocs(col);
@@ -51,7 +54,7 @@ export async function createTask(uid: string, fid: string, p: { name: string; de
 }
 
 export async function updateTask(uid: string, fid: string, tid: string, updates: Partial<Pick<TaskRecord, "name" | "deadline" | "tag" | "status">>) {
-  await updateDoc(doc(tasksCol(uid, fid), tid), { ...updates, updatedAt: serverTimestamp() });
+  await updateDoc(doc(tasksCol(uid, fid), tid), compact({ ...updates, updatedAt: serverTimestamp() }));
 }
 
 export async function deleteTask(uid: string, fid: string, tid: string) { await deleteDoc(doc(tasksCol(uid, fid), tid)); }

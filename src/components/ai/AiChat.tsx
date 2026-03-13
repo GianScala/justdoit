@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useRef, useEffect, useCallback, type KeyboardEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useTasks } from "@/context/TaskContext";
 import {
@@ -13,343 +13,566 @@ import {
   createFolder as fsCreateFolder,
 } from "@/features/tasks/utils/firestore";
 import { takeSnapshot, restoreSnapshot, getSnapshot } from "@/features/ai/snapshots";
-import type { ToolCall, ProposedPlan, PlanAction } from "@/features/ai/tools";
-import type { TaskWithFolder } from "@/types/task";
+import {
+  readChatSession,
+  writeChatSession,
+  clearChatSession,
+  type ChatMessage,
+} from "@/features/ai/chat-storage";
+import {
+  AI_USAGE_LIMIT_MESSAGE,
+  consumeAiTokens,
+  syncAiUsage,
+} from "@/features/ai/usage";
+import { buildStartMyDayMessage } from "@/features/ai/summary";
+import { hasProAccess } from "@/features/subscription/utils";
+import type { ToolCall, ProposedPlan } from "@/features/ai/tools";
+import UpgradeProModal from "@/components/subscription/UpgradeProModal";
 
-/* ── Types ────────────────────────────────────────────── */
+const URL_ACTIONS = new Set(["start_my_day", "what_now", "fix_week"]);
 
-interface ChatMessage {
-  id: string;
-  role: "user" | "assistant" | "system";
-  content: string;
-  timestamp: Date;
-  plan?: ProposedPlan | null;
-  planStatus?: "pending" | "approved" | "rejected";
+function createMessage(
+  role: ChatMessage["role"],
+  content: string,
+  extras?: Partial<ChatMessage>,
+): ChatMessage {
+  return {
+    id: crypto.randomUUID(),
+    role,
+    content,
+    timestamp: new Date(),
+    ...extras,
+  };
 }
 
-/* ── Component ────────────────────────────────────────── */
-
 export default function AiChat() {
-  const { user } = useAuth();
-  const { refresh } = useTasks();
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const { user, profile, refreshProfile } = useAuth();
+  const { folders, folderNames, overallTasks, refresh, dataLoading } = useTasks();
+  const canUseAi = hasProAccess(profile);
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [initDone, setInitDone] = useState(false);
+  const [storageReady, setStorageReady] = useState(false);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+
+  const chatRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const messagesRef = useRef<ChatMessage[]>([]);
+  const handledUrlActionRef = useRef<string | null>(null);
+  const initializedSessionRef = useRef(false);
+
   const hasSnap = !!getSnapshot();
 
-  /* Auto-scroll */
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages, loading]);
+    messagesRef.current = messages;
+  }, [messages]);
 
-  /* Auto-resize textarea */
+  const setSessionMessages = useCallback((nextMessages: ChatMessage[]) => {
+    messagesRef.current = nextMessages;
+    setMessages(nextMessages);
+  }, []);
+
+  const appendMessage = useCallback((message: ChatMessage) => {
+    setMessages((prev) => {
+      const nextMessages = [...prev, message];
+      messagesRef.current = nextMessages;
+      return nextMessages;
+    });
+  }, []);
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    requestAnimationFrame(() => {
+      container.scrollTo({ top: container.scrollHeight, behavior });
+    });
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom(messages.length > 1 ? "smooth" : "auto");
+  }, [messages, loading, scrollToBottom]);
+
   useEffect(() => {
     const el = inputRef.current;
     if (!el) return;
+
     el.style.height = "auto";
-    el.style.height = Math.min(el.scrollHeight, 120) + "px";
+    el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
   }, [input]);
 
-  /* ── Gather context ──────────────────────────────────── */
+  useEffect(() => {
+    if (!user) {
+      setSessionMessages([]);
+      setStorageReady(false);
+      initializedSessionRef.current = false;
+      handledUrlActionRef.current = null;
+      return;
+    }
+
+    setSessionMessages(readChatSession(user.uid));
+    setStorageReady(true);
+  }, [user, setSessionMessages]);
+
+  useEffect(() => {
+    if (!user || !storageReady || !canUseAi) return;
+    writeChatSession(user.uid, messages);
+  }, [user, storageReady, messages, canUseAi]);
+
+  useEffect(() => {
+    if (!user || !canUseAi) return;
+    void syncAiUsage(user.uid).then(() => refreshProfile()).catch(() => {});
+  }, [user, canUseAi, refreshProfile]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.visualViewport || !chatRef.current) return;
+
+    const viewport = window.visualViewport;
+    const updateKeyboardOffset = () => {
+      if (!chatRef.current) return;
+      const keyboardOffset = Math.max(
+        0,
+        window.innerHeight - viewport.height - viewport.offsetTop,
+      );
+      chatRef.current.style.setProperty("--ai-keyboard-offset", `${keyboardOffset}px`);
+    };
+
+    updateKeyboardOffset();
+    viewport.addEventListener("resize", updateKeyboardOffset);
+    viewport.addEventListener("scroll", updateKeyboardOffset);
+
+    return () => {
+      viewport.removeEventListener("resize", updateKeyboardOffset);
+      viewport.removeEventListener("scroll", updateKeyboardOffset);
+    };
+  }, []);
+
+  const showUpgradeModal = useCallback(() => {
+    setUpgradeOpen(true);
+  }, []);
+
+  const initializeFreshSession = useCallback(() => {
+    if (!canUseAi) return;
+
+    const initialMessage = createMessage(
+      "assistant",
+      buildStartMyDayMessage(overallTasks, folderNames),
+    );
+    setSessionMessages([initialMessage]);
+  }, [canUseAi, overallTasks, folderNames, setSessionMessages]);
+
+  useEffect(() => {
+    if (!user || !storageReady || !canUseAi || dataLoading) return;
+    if (messagesRef.current.length > 0 || initializedSessionRef.current) return;
+
+    initializedSessionRef.current = true;
+    initializeFreshSession();
+  }, [user, storageReady, canUseAi, dataLoading, initializeFreshSession]);
+
   const gatherContext = useCallback(async () => {
-    if (!user) return { tasks: [] as any[], folders: [] as any[] };
-    const [tasks, folders] = await Promise.all([
+    if (!user) {
+      return {
+        tasks: [] as Array<Record<string, unknown>>,
+        folders: [] as Array<Record<string, unknown>>,
+      };
+    }
+
+    if (!dataLoading && folders.length > 0) {
+      return {
+        tasks: overallTasks.map((task) => ({
+          id: task.id,
+          name: task.name,
+          deadline: task.deadline,
+          tag: task.tag,
+          status: task.status,
+          folderId: task.folderId,
+        })),
+        folders: folders.map((folder) => ({
+          id: folder.id,
+          name: folder.name,
+          locked: folder.locked,
+        })),
+      };
+    }
+
+    const [freshTasks, freshFolders] = await Promise.all([
       readAllTasks(user.uid),
       readFolders(user.uid),
     ]);
+
     return {
-      tasks: tasks.map((t) => ({
-        id: t.id, name: t.name, deadline: t.deadline,
-        tag: t.tag, status: t.status, folderId: t.folderId,
+      tasks: freshTasks.map((task) => ({
+        id: task.id,
+        name: task.name,
+        deadline: task.deadline,
+        tag: task.tag,
+        status: task.status,
+        folderId: task.folderId,
       })),
-      folders: folders.map((f) => ({
-        id: f.id, name: f.name, locked: f.locked,
+      folders: freshFolders.map((folder) => ({
+        id: folder.id,
+        name: folder.name,
+        locked: folder.locked,
       })),
     };
-  }, [user]);
+  }, [user, dataLoading, folders, overallTasks]);
 
-  /* ── Execute single tool call ────────────────────────── */
   const executeTool = useCallback(
-    async (toolName: string, inp: Record<string, unknown>) => {
+    async (toolName: string, toolInput: Record<string, unknown>) => {
       if (!user) return;
+
       switch (toolName) {
         case "update_task": {
           const updates: Record<string, unknown> = {};
-          if (inp.name) updates.name = inp.name;
-          if (inp.deadline !== undefined) updates.deadline = inp.deadline;
-          if (inp.status) updates.status = inp.status;
-          if (inp.tag) updates.tag = inp.tag;
-          await fsUpdateTask(user.uid, inp.folder_id as string, inp.task_id as string, updates as any);
+          if (toolInput.name !== undefined) updates.name = toolInput.name;
+          if (toolInput.deadline !== undefined) updates.deadline = toolInput.deadline;
+          if (toolInput.status !== undefined) updates.status = toolInput.status;
+          if (toolInput.tag !== undefined) updates.tag = toolInput.tag;
+          await fsUpdateTask(
+            user.uid,
+            toolInput.folder_id as string,
+            toolInput.task_id as string,
+            updates,
+          );
           break;
         }
         case "move_task": {
           const allTasks = await readAllTasks(user.uid);
-          const task = allTasks.find((t) => t.id === inp.task_id && t.folderId === inp.source_folder_id);
+          const task = allTasks.find(
+            (candidate) =>
+              candidate.id === toolInput.task_id &&
+              candidate.folderId === toolInput.source_folder_id,
+          );
+
           if (task) {
-            await fsCreateTask(user.uid, inp.target_folder_id as string, {
-              name: task.name, deadline: task.deadline, tag: task.tag,
+            await fsCreateTask(user.uid, toolInput.target_folder_id as string, {
+              name: task.name,
+              deadline: task.deadline,
+              tag: task.tag,
             });
-            await fsDeleteTask(user.uid, inp.source_folder_id as string, inp.task_id as string);
+            await fsDeleteTask(
+              user.uid,
+              toolInput.source_folder_id as string,
+              toolInput.task_id as string,
+            );
           }
           break;
         }
         case "create_task": {
-          const fid = (inp.folder_id as string) || "personal-tasks";
-          await fsCreateTask(user.uid, fid, {
-            name: inp.name as string,
-            deadline: (inp.deadline as string) || null,
-            tag: (inp.tag as any) || "standard",
+          await fsCreateTask(user.uid, (toolInput.folder_id as string) || "personal-tasks", {
+            name: toolInput.name as string,
+            deadline: (toolInput.deadline as string) || null,
+            tag: (toolInput.tag as "standard" | "important" | "urgent") || "standard",
           });
           break;
         }
         case "create_project": {
-          await fsCreateFolder(user.uid, inp.name as string);
+          await fsCreateFolder(user.uid, toolInput.name as string);
           break;
         }
       }
     },
-    [user]
+    [user],
   );
 
-  /* ── Execute tool calls + refresh ────────────────────── */
   const executeToolCalls = useCallback(
     async (toolCalls: ToolCall[]) => {
       for (const tool of toolCalls) {
-        try { await executeTool(tool.name, tool.input); }
-        catch (err) { console.error(`Tool ${tool.name} failed:`, err); }
+        try {
+          await executeTool(tool.name, tool.input);
+        } catch (err) {
+          console.error(`Tool ${tool.name} failed:`, err);
+        }
       }
-      await refresh();
+
+      await refresh("overall");
     },
-    [executeTool, refresh]
+    [executeTool, refresh],
   );
 
-  /* ── Execute a validated plan ────────────────────────── */
   const executePlan = useCallback(
     async (plan: ProposedPlan) => {
       if (!user) return;
-      /* Take snapshot before applying */
+
       await takeSnapshot(user.uid, plan.plan_title);
+
       for (const action of plan.actions) {
-        try { await executeTool(action.tool, action.params); }
-        catch (err) { console.error(`Plan step failed:`, err); }
+        try {
+          await executeTool(action.tool, action.params);
+        } catch (err) {
+          console.error(`Plan step failed:`, err);
+        }
       }
-      await refresh();
+
+      await refresh("overall");
     },
-    [user, executeTool, refresh]
+    [user, executeTool, refresh],
   );
 
-  /* ── Undo last plan ─────────────────────────────────── */
   const handleUndo = useCallback(async () => {
     if (!user) return;
+    if (!canUseAi) {
+      showUpgradeModal();
+      return;
+    }
+
     setLoading(true);
+
     try {
       const success = await restoreSnapshot(user.uid);
-      await refresh();
-      const msg: ChatMessage = {
-        id: crypto.randomUUID(), role: "assistant", timestamp: new Date(),
-        content: success
-          ? "Done — I've restored your tasks to the state before the last plan was applied."
-          : "No snapshot available to restore.",
-      };
-      setMessages((prev) => [...prev, msg]);
-    } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        { id: crypto.randomUUID(), role: "assistant", timestamp: new Date(), content: "Something went wrong while restoring. Please try again." },
-      ]);
+      await refresh("overall");
+
+      appendMessage(
+        createMessage(
+          "assistant",
+          success
+            ? "Previous AI changes restored."
+            : "No AI snapshot is available to restore.",
+        ),
+      );
+    } catch {
+      appendMessage(
+        createMessage("assistant", "Something went wrong while restoring your last changes."),
+      );
     } finally {
       setLoading(false);
     }
-  }, [user, refresh]);
+  }, [user, canUseAi, refresh, appendMessage, showUpgradeModal]);
 
-  /* ── Send API request ────────────────────────────────── */
   const sendToApi = useCallback(
-    async (action: string, userMessage?: string, addToChat = true) => {
+    async (action: string, userMessage?: string, addUserMessage = true) => {
       if (loading || !user) return;
-      if (addToChat && userMessage) {
-        const userMsg: ChatMessage = {
-          id: crypto.randomUUID(), role: "user", content: userMessage, timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, userMsg]);
+
+      if (!canUseAi) {
+        showUpgradeModal();
+        return;
       }
+
+      const pendingMessages = messagesRef.current;
+      let nextHistory = pendingMessages;
+
+      if (addUserMessage && userMessage) {
+        const newUserMessage = createMessage("user", userMessage);
+        nextHistory = [...pendingMessages, newUserMessage];
+        setSessionMessages(nextHistory);
+      }
+
+      const usage = await syncAiUsage(user.uid);
+      if (usage.tokensRemainingToday <= 0) {
+        appendMessage(createMessage("assistant", AI_USAGE_LIMIT_MESSAGE));
+        await refreshProfile();
+        return;
+      }
+
       setLoading(true);
+
       try {
         const context = await gatherContext();
-        const history = messages.slice(-20).map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
-        const res = await fetch("/api/ai-assistant", {
+        const conversationHistory = nextHistory
+          .slice(-20)
+          .filter((message) => message.role !== "system")
+          .map((message) => ({
+            role: message.role as "user" | "assistant",
+            content: message.content,
+          }));
+
+        const response = await fetch("/api/ai-assistant", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action, message: userMessage, context, conversationHistory: history }),
+          body: JSON.stringify({
+            action,
+            message: userMessage,
+            context,
+            conversationHistory,
+          }),
         });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ error: "Unknown error" }));
-          throw new Error(err.error || `HTTP ${res.status}`);
-        }
-        const data = await res.json();
 
-        /* Execute any direct tool calls */
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(data?.error || `HTTP ${response.status}`);
+        }
+
+        if (data?.usage?.totalTokens) {
+          await consumeAiTokens(user.uid, data.usage.totalTokens);
+          await refreshProfile();
+        }
+
         if (data.toolCalls?.length) {
           await executeToolCalls(data.toolCalls);
         }
 
-        const assistantMsg: ChatMessage = {
-          id: crypto.randomUUID(), role: "assistant", timestamp: new Date(),
-          content: data.message || "Done!",
-          plan: data.plan || null,
-          planStatus: data.plan ? "pending" : undefined,
-        };
-        setMessages((prev) => [...prev, assistantMsg]);
-      } catch (err: any) {
-        setMessages((prev) => [
-          ...prev,
-          { id: crypto.randomUUID(), role: "assistant", timestamp: new Date(), content: `Something went wrong: ${err.message}` },
-        ]);
+        appendMessage(
+          createMessage("assistant", data.message || "Done.", {
+            plan: data.plan || null,
+            planStatus: data.plan ? "pending" : undefined,
+          }),
+        );
+      } catch (err) {
+        appendMessage(
+          createMessage(
+            "assistant",
+            err instanceof Error && err.message === AI_USAGE_LIMIT_MESSAGE
+              ? AI_USAGE_LIMIT_MESSAGE
+              : `Something went wrong: ${err instanceof Error ? err.message : "Unknown error"}`,
+          ),
+        );
       } finally {
         setLoading(false);
       }
     },
-    [loading, user, messages, gatherContext, executeToolCalls]
+    [
+      loading,
+      user,
+      canUseAi,
+      showUpgradeModal,
+      setSessionMessages,
+      refreshProfile,
+      gatherContext,
+      executeToolCalls,
+      appendMessage,
+    ],
   );
 
-  /* ── Send chat message ───────────────────────────────── */
+  const handleQuickAction = useCallback(
+    async (action: "start_my_day" | "what_now" | "fix_week") => {
+      if (!canUseAi) {
+        showUpgradeModal();
+        return;
+      }
+
+      if (action === "start_my_day") {
+        appendMessage(createMessage("assistant", buildStartMyDayMessage(overallTasks, folderNames)));
+        return;
+      }
+
+      const userLabel =
+        action === "what_now" ? "What should I do now?" : "Fix my week";
+      await sendToApi(action, userLabel, true);
+    },
+    [canUseAi, showUpgradeModal, overallTasks, folderNames, appendMessage, sendToApi],
+  );
+
+  const refreshChat = useCallback(() => {
+    if (!user) return;
+
+    clearChatSession(user.uid);
+    initializedSessionRef.current = true;
+    setSessionMessages([]);
+    setInput("");
+
+    if (canUseAi) {
+      const freshMessage = createMessage(
+        "assistant",
+        buildStartMyDayMessage(overallTasks, folderNames),
+      );
+      setSessionMessages([freshMessage]);
+    }
+  }, [user, canUseAi, overallTasks, folderNames, setSessionMessages]);
+
   const sendMessage = useCallback(async () => {
     const text = input.trim();
     if (!text) return;
-    /* Check for undo command */
+
+    if (!canUseAi) {
+      showUpgradeModal();
+      return;
+    }
+
     if (/^(undo|restore previous|undo last change)/i.test(text)) {
       setInput("");
-      const userMsg: ChatMessage = { id: crypto.randomUUID(), role: "user", content: text, timestamp: new Date() };
-      setMessages((prev) => [...prev, userMsg]);
+      appendMessage(createMessage("user", text));
       await handleUndo();
       return;
     }
+
     setInput("");
     await sendToApi("chat", text, true);
-  }, [input, sendToApi, handleUndo]);
+  }, [input, canUseAi, showUpgradeModal, appendMessage, handleUndo, sendToApi]);
 
-  /* ── Handle plan approval/rejection ──────────────────── */
   const handlePlanDecision = useCallback(
-    async (msgId: string, approved: boolean) => {
+    async (messageId: string, approved: boolean) => {
       setMessages((prev) =>
-        prev.map((m) =>
-          m.id === msgId ? { ...m, planStatus: approved ? "approved" : "rejected" } : m
-        )
+        prev.map((message) =>
+          message.id === messageId
+            ? { ...message, planStatus: approved ? "approved" : "rejected" }
+            : message,
+        ),
       );
-      const msg = messages.find((m) => m.id === msgId);
-      if (approved && msg?.plan) {
+
+      const message = messagesRef.current.find((entry) => entry.id === messageId);
+      if (!message?.plan) return;
+
+      if (approved) {
         setLoading(true);
+
         try {
-          await executePlan(msg.plan);
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: crypto.randomUUID(), role: "assistant", timestamp: new Date(),
-              content: `Plan "${msg.plan!.plan_title}" applied successfully. You can say "undo" to revert these changes.`,
-            },
-          ]);
+          await executePlan(message.plan);
+          appendMessage(
+            createMessage(
+              "assistant",
+              `Plan "${message.plan.plan_title}" applied. Say "undo" to revert it.`,
+            ),
+          );
         } catch {
-          setMessages((prev) => [
-            ...prev,
-            { id: crypto.randomUUID(), role: "assistant", timestamp: new Date(), content: "Something went wrong applying the plan." },
-          ]);
+          appendMessage(
+            createMessage("assistant", "Something went wrong while applying that plan."),
+          );
         } finally {
           setLoading(false);
         }
-      } else if (!approved) {
-        setMessages((prev) => [
-          ...prev,
-          { id: crypto.randomUUID(), role: "assistant", timestamp: new Date(), content: "Plan discarded. Let me know if you'd like me to adjust it." },
-        ]);
+
+        return;
       }
+
+      appendMessage(createMessage("assistant", "Plan discarded."));
     },
-    [messages, executePlan]
+    [executePlan, appendMessage],
   );
 
-  /* ── Quick actions ───────────────────────────────────── */
-  const handleQuickAction = useCallback(
-    (action: string) => {
-      const labels: Record<string, string> = {
-        start_my_day: "☀️ Start My Day",
-        what_now: "🎯 What should I do now?",
-        fix_week: "🔧 Fix my week",
-      };
-      const userMsg: ChatMessage = {
-        id: crypto.randomUUID(), role: "user",
-        content: labels[action] || action, timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, userMsg]);
-      sendToApi(action, undefined, false);
-    },
-    [sendToApi]
-  );
-
-  /* ── Proactive opening + auto-action from URL params ─── */
   useEffect(() => {
-    if (initDone || !user) return;
-    setInitDone(true);
+    if (!user || !storageReady) return;
 
     const urlAction = searchParams.get("action");
-    if (urlAction && ["start_my_day", "what_now", "fix_week"].includes(urlAction)) {
-      handleQuickAction(urlAction);
-    } else {
-      /* Send proactive opening message */
-      (async () => {
-        setLoading(true);
-        try {
-          const context = await gatherContext();
-          const res = await fetch("/api/ai-assistant", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "proactive", context }),
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (data.message) {
-              setMessages([{
-                id: crypto.randomUUID(), role: "assistant",
-                content: data.message, timestamp: new Date(),
-              }]);
-            }
-          }
-        } catch { /* silent */ }
-        finally { setLoading(false); }
-      })();
+    if (!urlAction || !URL_ACTIONS.has(urlAction)) {
+      handledUrlActionRef.current = null;
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, initDone]);
 
-  /* ── Keyboard ────────────────────────────────────────── */
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
+    if (handledUrlActionRef.current === urlAction) return;
+    handledUrlActionRef.current = urlAction;
+
+    router.replace("/dashboard/ai-assistant");
+    void handleQuickAction(urlAction as "start_my_day" | "what_now" | "fix_week");
+  }, [user, storageReady, searchParams, router, handleQuickAction]);
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      void sendMessage();
     }
   };
 
-  /* ── Render plan preview ─────────────────────────────── */
-  const renderPlan = (msg: ChatMessage) => {
-    if (!msg.plan) return null;
-    const p = msg.plan;
-    const isPending = msg.planStatus === "pending";
+  const renderPlan = (message: ChatMessage) => {
+    if (!message.plan) return null;
+
+    const isPending = message.planStatus === "pending";
 
     return (
       <div className={`ai-plan ${isPending ? "" : "ai-plan-decided"}`}>
         <div className="ai-plan-header">
           <span className="ai-plan-icon">📋</span>
-          <span className="ai-plan-title">{p.plan_title}</span>
+          <span className="ai-plan-title">{message.plan.plan_title}</span>
         </div>
-        <div className="ai-plan-summary">{p.plan_summary}</div>
+        <div className="ai-plan-summary">{message.plan.plan_summary}</div>
         <div className="ai-plan-steps">
-          {p.actions.map((a, i) => (
-            <div key={i} className="ai-plan-step">
-              <span className="ai-plan-step-num">{i + 1}</span>
-              <span className="ai-plan-step-text">{a.description}</span>
+          {message.plan.actions.map((action, index) => (
+            <div key={`${message.id}-${index}`} className="ai-plan-step">
+              <span className="ai-plan-step-num">{index + 1}</span>
+              <span className="ai-plan-step-text">{action.description}</span>
             </div>
           ))}
         </div>
@@ -357,106 +580,163 @@ export default function AiChat() {
           <div className="ai-plan-actions">
             <button
               className="ai-plan-btn ai-plan-approve"
-              onClick={() => handlePlanDecision(msg.id, true)}
+              onClick={() => void handlePlanDecision(message.id, true)}
               disabled={loading}
             >
-              ✓ Apply Plan
+              Apply Plan
             </button>
             <button
               className="ai-plan-btn ai-plan-reject"
-              onClick={() => handlePlanDecision(msg.id, false)}
+              onClick={() => void handlePlanDecision(message.id, false)}
               disabled={loading}
             >
-              ✕ Discard
+              Discard
             </button>
           </div>
         )}
-        {msg.planStatus === "approved" && (
-          <div className="ai-plan-status ai-plan-status-ok">✓ Applied</div>
+        {message.planStatus === "approved" && (
+          <div className="ai-plan-status ai-plan-status-ok">Applied</div>
         )}
-        {msg.planStatus === "rejected" && (
-          <div className="ai-plan-status ai-plan-status-no">✕ Discarded</div>
+        {message.planStatus === "rejected" && (
+          <div className="ai-plan-status ai-plan-status-no">Discarded</div>
         )}
       </div>
     );
   };
 
-  /* ── Render ──────────────────────────────────────────── */
+  const emptyStateText = canUseAi
+    ? "Fresh daily focus will appear here when your session starts."
+    : "Upgrade to Pro to unlock AI planning";
+
   return (
-    <div className="ai-chat">
-      {/* Messages */}
-      <div className="ai-chat-messages" ref={scrollRef}>
-        {messages.length === 0 && !loading && (
-          <div className="ai-chat-empty">
-            <div className="ai-chat-empty-icon">⚡</div>
-            <div className="ai-chat-empty-title">AI Assistant</div>
-            <div className="ai-chat-empty-text">
-              Your personal AI project manager. I plan, organise, and keep you on track.
+    <>
+      <div className="ai-chat" ref={chatRef}>
+        <div className="ai-chat-messages" ref={scrollRef}>
+          {messages.length === 0 && !loading && (
+            <div className="ai-chat-empty">
+              <div className="ai-chat-empty-icon">⚡</div>
+              <div className="ai-chat-empty-title">{canUseAi ? "Today's Focus" : "Pro Required"}</div>
+              <div className="ai-chat-empty-text">{emptyStateText}</div>
+              {!canUseAi && (
+                <button
+                  type="button"
+                  className="ai-quick-btn"
+                  onClick={showUpgradeModal}
+                >
+                  Upgrade to Pro
+                </button>
+              )}
+            </div>
+          )}
+
+          {messages.map((message) => (
+            <div key={message.id} className={`ai-chat-bubble ai-chat-bubble-${message.role}`}>
+              <div className="ai-chat-bubble-label">
+                {message.role === "assistant" ? "Assistant" : "You"}
+              </div>
+              <div className="ai-chat-bubble-content">{message.content}</div>
+              {message.plan && renderPlan(message)}
+            </div>
+          ))}
+
+          {loading && (
+            <div className="ai-chat-bubble ai-chat-bubble-assistant">
+              <div className="ai-chat-bubble-label">Assistant</div>
+              <div className="ai-chat-bubble-content">
+                <span className="ai-chat-typing">
+                  <span />
+                  <span />
+                  <span />
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="ai-chat-footer">
+          <div className="ai-chat-quick-bar">
+            <button
+              className="ai-quick-btn"
+              onClick={() => void handleQuickAction("start_my_day")}
+              disabled={loading}
+            >
+              Start My Day
+            </button>
+            <button
+              className="ai-quick-btn"
+              onClick={() => void handleQuickAction("what_now")}
+              disabled={loading}
+            >
+              What should I do now
+            </button>
+            <button
+              className="ai-quick-btn"
+              onClick={() => void handleQuickAction("fix_week")}
+              disabled={loading}
+            >
+              Fix my week
+            </button>
+            <button
+              className="ai-quick-btn"
+              onClick={refreshChat}
+              disabled={loading}
+            >
+              Refresh
+            </button>
+            {hasSnap && (
+              <button
+                className="ai-quick-btn ai-quick-undo"
+                onClick={() => void handleUndo()}
+                disabled={loading}
+              >
+                Undo
+              </button>
+            )}
+          </div>
+
+          <div className="ai-chat-input-area">
+            <div className="ai-chat-input-row">
+              <textarea
+                ref={inputRef}
+                className="ai-chat-input"
+                placeholder={
+                  canUseAi
+                    ? "Ask AI to plan your work, fix your week, or break down a goal..."
+                    : "Upgrade to Pro to chat with AI"
+                }
+                value={input}
+                onChange={(event) => setInput(event.target.value)}
+                onKeyDown={handleKeyDown}
+                onFocus={() => {
+                  if (!canUseAi) showUpgradeModal();
+                  scrollToBottom("auto");
+                }}
+                rows={1}
+                disabled={loading}
+              />
+              <button
+                className="ai-chat-send"
+                onClick={() => void sendMessage()}
+                disabled={!input.trim() || loading}
+                aria-label="Send message"
+              >
+                Send
+              </button>
             </div>
           </div>
-        )}
-
-        {messages.map((m) => (
-          <div key={m.id} className={`ai-chat-bubble ai-chat-bubble-${m.role}`}>
-            <div className="ai-chat-bubble-label">
-              {m.role === "user" ? "You" : "Assistant"}
-            </div>
-            <div className="ai-chat-bubble-content">{m.content}</div>
-            {m.plan && renderPlan(m)}
-          </div>
-        ))}
-
-        {loading && (
-          <div className="ai-chat-bubble ai-chat-bubble-assistant">
-            <div className="ai-chat-bubble-label">Assistant</div>
-            <div className="ai-chat-bubble-content">
-              <span className="ai-chat-typing"><span /><span /><span /></span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Quick actions + undo */}
-      <div className="ai-chat-quick-bar">
-        <button className="ai-quick-btn" onClick={() => handleQuickAction("start_my_day")} disabled={loading}>
-          ☀️ Start My Day
-        </button>
-        <button className="ai-quick-btn" onClick={() => handleQuickAction("what_now")} disabled={loading}>
-          🎯 What Now?
-        </button>
-        <button className="ai-quick-btn" onClick={() => handleQuickAction("fix_week")} disabled={loading}>
-          🔧 Fix Week
-        </button>
-        {hasSnap && (
-          <button className="ai-quick-btn ai-quick-undo" onClick={handleUndo} disabled={loading}>
-            ↺ Undo
-          </button>
-        )}
-      </div>
-
-      {/* Input */}
-      <div className="ai-chat-input-area">
-        <div className="ai-chat-input-row">
-          <textarea
-            ref={inputRef}
-            className="ai-chat-input"
-            placeholder="Tell me your goals or ask about tasks…"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            rows={1}
-            disabled={loading}
-          />
-          <button
-            className="ai-chat-send"
-            onClick={sendMessage}
-            disabled={!input.trim() || loading}
-            aria-label="Send message"
-          >
-            ↑
-          </button>
         </div>
       </div>
-    </div>
+
+      {user && (
+        <UpgradeProModal
+          open={upgradeOpen}
+          onClose={() => setUpgradeOpen(false)}
+          uid={user.uid}
+          email={user.email}
+          title={canUseAi ? "Upgrade to Pro" : "Upgrade to Pro to unlock AI planning"}
+          description="Let AI organize your work automatically."
+        />
+      )}
+    </>
   );
 }

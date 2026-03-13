@@ -4,35 +4,31 @@ import { Suspense, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useTasks } from "@/context/TaskContext";
+import { hasProAccess } from "@/features/subscription/utils";
 import PageContainer from "@/components/layout/PageContainer";
 import AiChat from "@/components/ai/AiChat";
 import Spinner from "@/components/ui/Spinner";
 
 function AiAssistantInner() {
   const router = useRouter();
-  const { user, loading } = useAuth();
-  const { refresh } = useTasks();
+  const { user, profile, loading } = useAuth();
+  const { refresh, overallTasks } = useTasks();
+  const canUseAi = hasProAccess(profile);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/auth/login");
   }, [loading, user, router]);
 
   useEffect(() => {
-    if (user) refresh();
+    if (user && canUseAi && overallTasks.length === 0) refresh("overall");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, canUseAi, overallTasks.length]);
 
   if (loading || !user) return <Spinner />;
 
   return (
     <PageContainer>
       <div className="ai-page">
-        <div className="ai-page-header">
-          <div className="ai-page-title">AI Assistant</div>
-          <div className="ai-page-subtitle">
-            Your personal AI project manager
-          </div>
-        </div>
         <AiChat />
       </div>
     </PageContainer>

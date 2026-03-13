@@ -4,43 +4,43 @@ export default function HeroSection() {
   return (
     <section className="landing-hero">
       <div className="page-container landing-hero-inner">
-        <div className="landing-kicker">Task automation platform</div>
+        <div className="landing-kicker">AI productivity assistant</div>
 
         <h1 className="landing-title">
-          Automate tasks
+          Stop planning tasks.
           <br />
-          Stay focused
+          Let AI organize your work.
         </h1>
 
         <p className="landing-subtitle">
-          JustDoIt helps you organize projects, prioritize work, and automate
-          repetitive tasks so you can focus on what actually matters.
+          Your AI productivity assistant turns messy goals into structured
+          plans, tasks, and daily priorities automatically.
         </p>
 
         <div className="landing-actions">
           <Link href="/auth/register" className="btn btn-primary">
-            Create Account
+            Start Free
           </Link>
 
-          <Link href="/auth/login" className="btn btn-outline">
-            Login
+          <Link href="#how-it-works" className="btn btn-outline">
+            See how it works
           </Link>
         </div>
 
         <div className="landing-stats">
           <div className="landing-stat">
-            <strong>Smart</strong>
-            Scheduling
+            <strong>Goal</strong>
+            To plan
           </div>
 
           <div className="landing-stat">
-            <strong>Folders</strong>
-            Projects
+            <strong>Daily</strong>
+            Priorities
           </div>
 
           <div className="landing-stat">
-            <strong>Auto</strong>
-            Workflows
+            <strong>Less</strong>
+            Planning
           </div>
         </div>
       </div>

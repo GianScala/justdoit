@@ -1,6 +1,7 @@
 export const PENDING_KEY = "pending_email_verification";
 export const PENDING_COOKIE = "pv";
 export const PENDING_EXPIRY_MS = 30 * 60 * 1000;
+export const DAILY_AI_TOKEN_LIMIT = 50000;
 
 export const DEFAULT_FOLDERS = [
   { id: "personal-tasks", name: "Personal Tasks", locked: true },

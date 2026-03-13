@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState, ReactNode, useCallback,
 import { onAuthStateChanged, User, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { getFirebaseAuth, getFirebaseDb, ensureUserProfile, checkGoogleRedirectResult } from "@/features/auth/utils/firebase";
+import { syncAiUsage } from "@/features/ai/usage";
 import { PENDING_KEY, PENDING_COOKIE, PENDING_EXPIRY_MS } from "@/lib/constants";
 import type { UserProfile } from "@/types/user";
 import type { PendingVerification, RedirectResult } from "@/types/auth";
@@ -33,7 +34,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isPendingVerification = useMemo(() => mounted ? !!pendingVerification || hasPendingCookie() : false, [pendingVerification, mounted]);
 
   const loadProfile = useCallback(async (u: User) => {
-    try { const db = getFirebaseDb(); await ensureUserProfile(u); const s = await getDoc(doc(db, "users", u.uid)); if (s.exists()) setProfile({ id: u.uid, ...(s.data() as Omit<UserProfile, "id">) }); else setProfile(null); }
+    try {
+      const db = getFirebaseDb();
+      await ensureUserProfile(u);
+      await syncAiUsage(u.uid);
+      const s = await getDoc(doc(db, "users", u.uid));
+      if (s.exists()) setProfile({ id: u.uid, ...(s.data() as Omit<UserProfile, "id">) });
+      else setProfile(null);
+    }
     catch { setProfile(null); }
   }, []);
 

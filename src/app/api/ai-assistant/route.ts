@@ -31,6 +31,18 @@ interface RequestBody {
   conversationHistory?: ConversationMessage[];
 }
 
+interface UsageTotals {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+}
+
+const EMPTY_USAGE: UsageTotals = {
+  inputTokens: 0,
+  outputTokens: 0,
+  totalTokens: 0,
+};
+
 /* ── Helpers ──────────────────────────────────────────── */
 
 function greetingTime(): string {
@@ -92,16 +104,21 @@ You are NOT a simple CRUD chatbot. You are a personal AI project manager.
 - Interpret goals and turn them into actionable plans.
 - Proactively surface what matters: overdue items, today's priorities, workload issues.
 - When the user describes a goal (like "I need to prepare a Ferrari interview"), break it into steps, choose or create the right project, and set smart deadlines.
-- Keep answers SHORT, action-oriented, and calm. No walls of text.
-- Use plain text, not markdown. Use line breaks for readability.
+- Keep answers extremely short, sharp, and useful for an overwhelmed ADHD user.
+- Lead with the answer or next step, not explanation.
+- Default to 1 short paragraph or up to 3 short lines. No filler, no repetition, no long context-setting.
+- If the user asks for a plan, make the visible message brief because the real detail lives in the plan preview.
+- Use plain text only. Short lines and simple bullet points are better than dense paragraphs.
 
 CRITICAL RULES:
 1. ALWAYS use propose_plan when creating 2+ tasks, creating a project with tasks, reorganizing multiple tasks, or fixing a schedule. NEVER directly create multiple items without a plan.
+1a. If the user describes a goal, event, prep, deadline, or outcome like "prepare a Ferrari interview next week", treat it as a planning request and use propose_plan.
 2. For single simple actions (mark done, rename one task, create one task), use the direct tools.
 3. Never invent task IDs or folder IDs — match from context above.
 4. For date arithmetic (e.g. "postpone by one week"), calculate from the task's current deadline.
 5. If ambiguous, ask for clarification — but prefer making smart assumptions over asking too many questions.
-6. When proposing a plan, include realistic deadlines spread across days, not all on the same day.`;
+6. When proposing a plan, include realistic deadlines spread across days, not all on the same day.
+7. Never overwhelm the user. If there is one best next step, say that.`;
 }
 
 function buildProactivePrompt(folders: FolderCtx[], tasks: TaskCtx[]): string {
@@ -121,10 +138,10 @@ ${overdue.length > 0 ? "Overdue tasks:\n" + overdue.map((t) => `- "${t.name}" (w
 ${dueToday.length > 0 ? "Due today:\n" + dueToday.map((t) => `- "${t.name}" [${t.tag}]`).join("\n") : "Nothing due today."}
 ${urgent.length > 0 ? "Urgent:\n" + urgent.map((t) => `- "${t.name}" (due ${t.deadline || "no date"})`).join("\n") : ""}
 
-Write 2-4 SHORT sentences. Be specific about task names. Mention the most important thing first.
-Format: plain text, line breaks for clarity. No markdown. No bullet points.
-If everything is calm, say so and offer to help plan ahead.
-End with one brief, actionable offer — not a list of options.`;
+Write 2-3 very short lines.
+Mention the most important thing first.
+End with one clear next step.
+Plain text only.`;
 }
 
 function buildStartMyDayPrompt(folders: FolderCtx[], tasks: TaskCtx[]): string {
@@ -147,14 +164,13 @@ ${dueToday.map((t) => `TODAY: "${t.name}" [${t.tag}] in ${t.folderId}`).join("\n
 ${dueSoon.map((t) => `SOON: "${t.name}" (${t.deadline}) [${t.tag}]`).join("\n")}
 ${inProgress.map((t) => `IN PROGRESS: "${t.name}" [${t.tag}]`).join("\n")}
 
-Write a concise daily briefing:
-1. Top priority (one task, be specific)
-2. Today's focus list (2-4 items max, with task names)
-3. One warning if there are overdue items or conflicts
-4. One actionable suggestion
-
-Keep it SHORT — this is a quick daily glance, not a report.
-Use plain text with line breaks. No markdown, no bullet points, no headers.`;
+Return exactly 4 short lines:
+TOP PRIORITY: ...
+TODAY'S FOCUS: ...
+WARNING: ...
+SUGGESTION: ...
+Keep every line tight and scannable.
+Plain text only.`;
 }
 
 function buildWhatNowPrompt(tasks: TaskCtx[]): string {
@@ -176,8 +192,8 @@ ${candidates.map((t) => `- "${t.name}" | status: ${t.status} | deadline: ${t.dea
 Priority logic: overdue > due today > urgent > in-progress > upcoming.
 Tie-break by deadline (sooner first), then priority (urgent > important > standard).
 
-Respond in 1-2 sentences MAX. Name the specific task and why.
-If applicable, suggest a quick action like "Start it now?" or "Mark it done?".
+Respond in 1-2 short sentences MAX. Name the specific task and why.
+End with one direct next step if helpful.
 Plain text only. No markdown.`;
 }
 
@@ -210,7 +226,7 @@ Create a propose_plan that:
 3. Prioritises urgent/important items for earlier dates
 4. Keeps in-progress tasks mostly stable
 
-Add a brief plain-text summary explaining what you changed and why. Be specific.`;
+Add a brief plain-text summary with 2 short lines max. Be specific.`;
 }
 
 function resolveGetTasks(tasks: TaskCtx[], input: Record<string, unknown>): string {
@@ -229,7 +245,7 @@ async function callClaude(
 ): Promise<any> {
   const body: any = {
     model: "claude-sonnet-4-20250514",
-    max_tokens: 1500,
+    max_tokens: 900,
     system,
     messages,
   };
@@ -252,6 +268,29 @@ async function callClaude(
   }
 
   return res.json();
+}
+
+function getUsageTotals(data: any): UsageTotals {
+  const usage = data?.usage ?? {};
+  const inputTokens =
+    (usage.input_tokens ?? 0) +
+    (usage.cache_creation_input_tokens ?? 0) +
+    (usage.cache_read_input_tokens ?? 0);
+  const outputTokens = usage.output_tokens ?? 0;
+
+  return {
+    inputTokens,
+    outputTokens,
+    totalTokens: inputTokens + outputTokens,
+  };
+}
+
+function mergeUsageTotals(base: UsageTotals, next: UsageTotals): UsageTotals {
+  return {
+    inputTokens: base.inputTokens + next.inputTokens,
+    outputTokens: base.outputTokens + next.outputTokens,
+    totalTokens: base.totalTokens + next.totalTokens,
+  };
 }
 
 /* ── Main handler ─────────────────────────────────────── */
@@ -286,7 +325,7 @@ export async function POST(req: NextRequest) {
         .filter((b: any) => b.type === "text")
         .map((b: any) => b.text)
         .join("\n");
-      return NextResponse.json({ message: text, toolCalls: [], plan: null });
+      return NextResponse.json({ message: text, toolCalls: [], plan: null, usage: getUsageTotals(data) });
     }
 
     /* ── Start My Day ──────────────────────────────── */
@@ -297,7 +336,7 @@ export async function POST(req: NextRequest) {
         .filter((b: any) => b.type === "text")
         .map((b: any) => b.text)
         .join("\n");
-      return NextResponse.json({ message: text, toolCalls: [], plan: null });
+      return NextResponse.json({ message: text, toolCalls: [], plan: null, usage: getUsageTotals(data) });
     }
 
     /* ── What should I do now? ─────────────────────── */
@@ -308,7 +347,7 @@ export async function POST(req: NextRequest) {
         .filter((b: any) => b.type === "text")
         .map((b: any) => b.text)
         .join("\n");
-      return NextResponse.json({ message: text, toolCalls: [], plan: null });
+      return NextResponse.json({ message: text, toolCalls: [], plan: null, usage: getUsageTotals(data) });
     }
 
     /* ── Fix my week ───────────────────────────────── */
@@ -357,9 +396,11 @@ async function runToolLoop(
   const pendingToolCalls: Array<{ id: string; name: string; input: Record<string, unknown> }> = [];
   let plan: ProposedPlan | null = null;
   let finalText = "";
+  let usageTotals = EMPTY_USAGE;
 
   for (let i = 0; i < MAX_LOOPS; i++) {
     const data = await callClaude(apiKey, systemPrompt, messages, true);
+    usageTotals = mergeUsageTotals(usageTotals, getUsageTotals(data));
     const contentBlocks: any[] = data.content ?? [];
     const textParts: string[] = [];
     const toolUseBlocks: Array<{ id: string; name: string; input: Record<string, unknown> }> = [];
@@ -415,5 +456,5 @@ async function runToolLoop(
     if (textParts.length) finalText = textParts.join("\n");
   }
 
-  return NextResponse.json({ message: finalText, toolCalls: pendingToolCalls, plan });
+  return NextResponse.json({ message: finalText, toolCalls: pendingToolCalls, plan, usage: usageTotals });
 }

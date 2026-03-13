@@ -1,6 +1,7 @@
 import HeroSection from "./HeroSection";
 import FeaturesSection from "./FeaturesSection";
 import WorkflowSection from "./WorkflowSection";
+import PricingSection from "./PricingSection";
 import CtaSection from "./CtaSection";
 
 export default function LandingPage() {
@@ -9,6 +10,7 @@ export default function LandingPage() {
       <HeroSection />
       <FeaturesSection />
       <WorkflowSection />
+      <PricingSection />
       <CtaSection />
     </div>
   );
